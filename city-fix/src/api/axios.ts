@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Retrieve the base URL from the environment variables
@@ -14,7 +14,7 @@ const apiClient = axios.create({
 
 // Interceptor to add the token to every request automatically
 apiClient.interceptors.request.use(
-  async (config) => {
+  async (config: InternalAxiosRequestConfig) => {
     try {
       // Securely fetch the token from the device
       const token = await SecureStore.getItemAsync('userToken');
@@ -26,7 +26,7 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );

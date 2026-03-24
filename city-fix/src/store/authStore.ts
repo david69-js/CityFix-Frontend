@@ -19,17 +19,17 @@ interface AuthState {
   initializeAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set: any) => ({
   token: null,
   user: null,
   isLoading: true,
 
-  setToken: async (token) => {
+  setToken: async (token: string) => {
     await SecureStore.setItemAsync('userToken', token);
     set({ token });
   },
 
-  setUser: (user) => {
+  setUser: (user: User) => {
     set({ user });
   },
 
