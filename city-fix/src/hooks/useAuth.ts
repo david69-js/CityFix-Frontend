@@ -19,7 +19,8 @@ export interface RegisterPayload {
 }
 
 interface AuthResponse {
-  token: string;
+  token?: string;
+  access_token?: string;
   user: {
     id: number;
     first_name: string;
@@ -42,10 +43,11 @@ export const useLogin = () => {
       const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       // Save token in Zustand + SecureStore
-      if (data.token) {
-        setToken(data.token);
+      const activeToken = data.token || data.access_token;
+      if (activeToken) {
+        setToken(activeToken);
       }
       if (data.user) {
         setUser(data.user);
@@ -63,9 +65,10 @@ export const useRegister = () => {
       const response = await apiClient.post<AuthResponse>('/auth/register', userData);
       return response.data;
     },
-    onSuccess: (data) => {
-      if (data.token) {
-        setToken(data.token);
+    onSuccess: (data: any) => {
+      const activeToken = data.token || data.access_token;
+      if (activeToken) {
+        setToken(activeToken);
       }
       if (data.user) {
         setUser(data.user);
