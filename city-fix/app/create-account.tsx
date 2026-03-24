@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRegister } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8', // Solid blue
@@ -20,9 +21,30 @@ export default function CreateAccountScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+
+  const registerMutation = useRegister();
+
   const handleAuthAction = () => {
-    // Navigate straight to the home page simulating a successful login
-    router.replace('/');
+    registerMutation.mutate({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      password,
+      role_id: 2
+    }, {
+      onSuccess: () => {
+        router.replace('/');
+      },
+      onError: (e) => {
+        alert('Error registrando: ' + e);
+      }
+    });
   };
 
   return (
@@ -52,16 +74,32 @@ export default function CreateAccountScreen() {
           {/* Form Fields */}
           <View style={styles.formContainer}>
             
-            {/* Full Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre Completo</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
-                  style={styles.textInput}
-                  placeholder="Juan Pérez"
-                  placeholderTextColor={colors.textLight}
-                />
+            {/* First Name & Last Name */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.label}>Nombres</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+                  <TextInput 
+                    style={styles.textInput}
+                    placeholder="Juan"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholderTextColor={colors.textLight}
+                  />
+                </View>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Apellidos</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput 
+                    style={styles.textInput}
+                    placeholder="Pérez"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholderTextColor={colors.textLight}
+                  />
+                </View>
               </View>
             </View>
 
@@ -75,6 +113,8 @@ export default function CreateAccountScreen() {
                   placeholder="tu.correo@ejemplo.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                   placeholderTextColor={colors.textLight}
                 />
               </View>
@@ -91,6 +131,8 @@ export default function CreateAccountScreen() {
                   style={styles.textInput}
                   placeholder="+1 (555) 000-0000"
                   keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
                   placeholderTextColor={colors.textLight}
                 />
               </View>
@@ -105,6 +147,8 @@ export default function CreateAccountScreen() {
                   style={styles.textInput}
                   placeholder="Crea una contraseña segura"
                   secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
                   placeholderTextColor={colors.textLight}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
@@ -146,8 +190,8 @@ export default function CreateAccountScreen() {
             </View>
 
             {/* Create Account Button */}
-            <TouchableOpacity style={styles.primaryButton} onPress={handleAuthAction}>
-              <Text style={styles.primaryButtonText}>Crear Cuenta</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleAuthAction} disabled={registerMutation.isPending}>
+              <Text style={styles.primaryButtonText}>{registerMutation.isPending ? 'Creando...' : 'Crear Cuenta'}</Text>
             </TouchableOpacity>
 
             {/* Divider */}

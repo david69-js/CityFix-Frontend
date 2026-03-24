@@ -3,8 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 
 interface User {
   id: number;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
+  phone?: string;
+  avatar?: string;
+  role_id?: number;
 }
 
 interface AuthState {

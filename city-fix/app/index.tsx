@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUsers } from '../src/hooks/useAuth';
 
 const { width } = Dimensions.get('window');
 
@@ -101,6 +102,7 @@ const REPORTS = [
 
 export default function CityReporterDashboard() {
   const router = useRouter();
+  const { data: users, isLoading: usersLoading } = useUsers();
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -115,6 +117,15 @@ export default function CityReporterDashboard() {
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>City Fix</Text>
             <Text style={styles.headerSubtitle}>Ayuda a mejorar tu vecindario</Text>
+
+            {/* TEST API CARD */}
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 12, marginTop: 15 }}>
+              <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>🔗 Test de Conexión Laravel API:</Text>
+              {usersLoading ? <Text style={{color: '#FFF', fontSize: 12, marginTop: 4}}>Cargando usuarios...</Text> : (
+                <Text style={{color: '#FFF', fontSize: 12, marginTop: 4}}>✅ Usuarios detectados: {users?.length || 0}</Text>
+              )}
+            </View>
+
           </View>
         </SafeAreaView>
 
