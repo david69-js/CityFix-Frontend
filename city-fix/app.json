@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.davidtojalvarez.cityfix"
     },
     "android": {
+      "package": "com.alexander.cityfix",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
