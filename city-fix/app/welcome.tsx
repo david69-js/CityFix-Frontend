@@ -18,8 +18,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   const handleLogin = () => {
-    // Both buttons go to the home view as requested
-    router.replace('/');
+    router.replace('/login');
   };
 
   return (
@@ -108,7 +107,7 @@ export default function WelcomeScreen() {
             <Text style={styles.primaryButtonText}>Crear Cuenta</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace('/')} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleLogin} activeOpacity={0.8}>
             <Text style={styles.secondaryButtonText}>Iniciar Sesión</Text>
           </TouchableOpacity>
 

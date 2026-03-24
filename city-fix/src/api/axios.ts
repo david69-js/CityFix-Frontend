@@ -1,5 +1,5 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync } from '../utils/storage';
 
 // Retrieve the base URL from the environment variables
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -16,8 +16,8 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      // Securely fetch the token from the device
-      const token = await SecureStore.getItemAsync('userToken');
+      // Securely fetch the token from the device or web local storage
+      const token = await getItemAsync('userToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

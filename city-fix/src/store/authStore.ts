@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 
 interface User {
   id: number;
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set: any) => ({
   isLoading: true,
 
   setToken: async (token: string) => {
-    await SecureStore.setItemAsync('userToken', token);
+    await setItemAsync('userToken', token);
     set({ token });
   },
 
@@ -38,14 +38,14 @@ export const useAuthStore = create<AuthState>((set: any) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('userToken');
+    await deleteItemAsync('userToken');
     set({ token: null, user: null });
   },
 
   initializeAuth: async () => {
     try {
       set({ isLoading: true });
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await getItemAsync('userToken');
       if (token) {
         set({ token });
         // NOTE: Here you would normally fetch the user profile using the token

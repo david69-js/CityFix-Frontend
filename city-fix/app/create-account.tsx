@@ -13,6 +13,7 @@ const colors = {
   textLight: '#9CA3AF', 
   border: '#D1D5DB',
   divider: '#E5E7EB',
+  error: '#EF4444',
 };
 
 export default function CreateAccountScreen() {
@@ -26,10 +27,12 @@ export default function CreateAccountScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const registerMutation = useRegister();
 
   const handleAuthAction = () => {
+    setErrorMessage('');
     registerMutation.mutate({
       first_name: firstName,
       last_name: lastName,
@@ -41,10 +44,30 @@ export default function CreateAccountScreen() {
       onSuccess: () => {
         router.replace('/');
       },
-      onError: (e) => {
-        alert('Error registrando: ' + e);
+      onError: (e: any) => {
+        const data = e?.response?.data;
+        if (data?.message) {
+          setErrorMessage(data.message);
+        } else if (data?.errors) {
+          const firstError = Object.values(data.errors)[0] as string[];
+          if (firstError && firstError.length > 0) {
+            setErrorMessage(firstError[0]);
+          } else {
+            setErrorMessage('Error de validación.');
+          }
+        } else {
+          setErrorMessage('Error de conexión o datos inválidos.');
+        }
       }
     });
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/welcome');
+    }
   };
 
   return (
@@ -53,7 +76,7 @@ export default function CreateAccountScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+        <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
         </TouchableOpacity>
       </View>
@@ -74,6 +97,14 @@ export default function CreateAccountScreen() {
           {/* Form Fields */}
           <View style={styles.formContainer}>
             
+            {/* Error Message */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* First Name & Last Name */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
               <View style={{ flex: 1, marginRight: 10 }}>
@@ -254,6 +285,23 @@ const styles = StyleSheet.create({
   },
   headerTextContainer: {
     marginBottom: 32,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FCA5A5'
+  },
+  errorText: {
+    color: colors.error,
+    marginLeft: 8,
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1
   },
   title: {
     fontSize: 28,
