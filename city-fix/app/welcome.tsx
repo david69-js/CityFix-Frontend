@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, StatusBar, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -27,95 +28,97 @@ export default function WelcomeScreen() {
       <StatusBar barStyle="light-content" />
 
       <View style={styles.container}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 10 }}>
 
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="location-outline" size={40} color={colors.primary} />
-          </View>
-          <Text style={styles.title}>City Fix</Text>
-          <Text style={styles.subtitle}>
-            Ayuda a mejorar tu ciudad reportando y haciendo seguimiento a los problemas urbanos
-          </Text>
-        </View>
-
-        {/* Features Grid */}
-        <View style={styles.gridContainer}>
-
-          <View style={styles.featureCard}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="location-outline" size={18} color="#FFF" />
+          {/* Header Section */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Ionicons name="location-outline" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.featureTitle}>Reportar Problemas</Text>
-            <Text style={styles.featureDesc}>
-              Reporta rápidamente problemas de la ciudad en tu vecindario
+            <Text style={styles.title}>City Fix</Text>
+            <Text style={styles.subtitle}>
+              Ayuda a mejorar tu ciudad reportando y haciendo seguimiento a los problemas urbanos
             </Text>
           </View>
 
-          <View style={styles.featureCard}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="trending-up-outline" size={18} color="#FFF" />
+          {/* Features Grid */}
+          <View style={styles.gridContainer}>
+
+            <View style={styles.featureCard}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="location-outline" size={18} color="#FFF" />
+              </View>
+              <Text style={styles.featureTitle}>Reportar Problemas</Text>
+              <Text style={styles.featureDesc}>
+                Reporta rápidamente problemas de la ciudad en tu vecindario
+              </Text>
             </View>
-            <Text style={styles.featureTitle}>Seguir Progreso</Text>
-            <Text style={styles.featureDesc}>
-              Monitorea actualizaciones de estado desde el reporte hasta la resolución
+
+            <View style={styles.featureCard}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="trending-up-outline" size={18} color="#FFF" />
+              </View>
+              <Text style={styles.featureTitle}>Seguir Progreso</Text>
+              <Text style={styles.featureDesc}>
+                Monitorea actualizaciones de estado desde el reporte hasta la resolución
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="people-outline" size={18} color="#FFF" />
+              </View>
+              <Text style={styles.featureTitle}>Poder Comunitario</Text>
+              <Text style={styles.featureDesc}>
+                Únete a otros para mejorar tu comunidad juntos
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="shield-outline" size={18} color="#FFF" />
+              </View>
+              <Text style={styles.featureTitle}>Generar Impacto</Text>
+              <Text style={styles.featureDesc}>
+                Tus reportes ayudan a crear una mejor ciudad para todos
+              </Text>
+            </View>
+
+          </View>
+
+          {/* Stats Section */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>10K+</Text>
+              <Text style={styles.statLabel}>Usuarios Activos</Text>
+            </View>
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>25K+</Text>
+              <Text style={styles.statLabel}>Problemas Resueltos</Text>
+            </View>
+          </View>
+
+          <View style={{ flex: 1, minHeight: 20 }} />
+
+          {/* Actions Section */}
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/create-account')} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Crear Cuenta</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleLogin} activeOpacity={0.8}>
+              <Text style={styles.secondaryButtonText}>Iniciar Sesión</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.footerText}>
+              Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad
             </Text>
           </View>
 
-          <View style={styles.featureCard}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="people-outline" size={18} color="#FFF" />
-            </View>
-            <Text style={styles.featureTitle}>Poder Comunitario</Text>
-            <Text style={styles.featureDesc}>
-              Únete a otros para mejorar tu comunidad juntos
-            </Text>
-          </View>
-
-          <View style={styles.featureCard}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="shield-outline" size={18} color="#FFF" />
-            </View>
-            <Text style={styles.featureTitle}>Generar Impacto</Text>
-            <Text style={styles.featureDesc}>
-              Tus reportes ayudan a crear una mejor ciudad para todos
-            </Text>
-          </View>
-
-        </View>
-
-        {/* Stats Section */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>10K+</Text>
-            <Text style={styles.statLabel}>Usuarios Activos</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>25K+</Text>
-            <Text style={styles.statLabel}>Problemas Resueltos</Text>
-          </View>
-        </View>
-
-        <View style={{ flex: 1 }} />
-
-        {/* Actions Section */}
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/create-account')} activeOpacity={0.8}>
-            <Text style={styles.primaryButtonText}>Crear Cuenta</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.secondaryButtonText}>Iniciar Sesión</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.footerText}>
-            Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad
-          </Text>
-        </View>
-
+        </ScrollView>
       </View>
     </SafeAreaView>
   );

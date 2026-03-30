@@ -19,7 +19,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
 
-    const isAuthRoute = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'create-account';
+    const isAuthRoute = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'create-account' || segments[0] === 'worker-registration';
 
     if (!token && !isAuthRoute) {
       // Not logged in -> Redirect to welcome

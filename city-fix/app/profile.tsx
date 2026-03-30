@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuthStore } from '../src/store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +39,7 @@ const colors = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, logout } = useAuthStore();
 
   return (
     <View style={styles.container}>
@@ -63,8 +65,8 @@ export default function ProfileScreen() {
                   <Ionicons name="person-outline" size={40} color={colors.primary} />
                 </View>
               </View>
-              <Text style={styles.userName}>jefferson</Text>
-              <Text style={styles.userEmail}>jefferson@gmail.com</Text>
+              <Text style={styles.userName}>{user ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Usuario'}</Text>
+              <Text style={styles.userEmail}>{user?.email || ''}</Text>
             </View>
           </SafeAreaView>
         </View>
@@ -195,7 +197,13 @@ export default function ProfileScreen() {
           </View>
 
           {/* Logout Button */}
-          <TouchableOpacity style={styles.logoutButton} onPress={() => router.replace('/welcome')}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={async () => {
+              await logout();
+              router.replace('/welcome');
+            }}
+          >
             <Ionicons name="log-out-outline" size={20} color={colors.danger} />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
           </TouchableOpacity>

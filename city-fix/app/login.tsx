@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLogin } from '../src/hooks/useAuth';
@@ -168,15 +169,16 @@ export default function LoginScreen() {
 
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Footer Sign Up Link */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-        <TouchableOpacity onPress={() => router.push('/create-account')}>
-          <Text style={styles.footerLink}>Regístrate gratis</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Footer Sign Up Link */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+          <TouchableOpacity onPress={() => router.push('/create-account')}>
+            <Text style={styles.footerLink}>Regístrate gratis</Text>
+          </TouchableOpacity>
+        </View>
+
+      </KeyboardAvoidingView>
 
     </SafeAreaView>
   );

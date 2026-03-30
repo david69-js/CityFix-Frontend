@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRegister } from '../src/hooks/useAuth';
 
 const colors = {
@@ -244,17 +245,33 @@ export default function CreateAccountScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Worker Link Divider */}
+            <View style={[styles.dividerContainer, { marginTop: 40, marginBottom: 20 }]}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Personal Municipal</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.socialButton, { justifyContent: 'center', backgroundColor: '#ECFDF5', borderColor: '#10B981', marginHorizontal: 0 }]} 
+              onPress={() => router.push('/worker-registration')}
+            >
+              <MaterialCommunityIcons name="shield-account-outline" size={22} color="#10B981" style={styles.socialIcon} />
+              <Text style={[styles.socialButtonText, { color: '#10B981' }]}>Registro de Trabajador</Text>
+            </TouchableOpacity>
+
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Footer Log In Link */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>¿Ya tienes una cuenta? </Text>
-        <TouchableOpacity onPress={handleAuthAction}>
-          <Text style={styles.footerLink}>Iniciar sesión</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Footer Log In Link */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>¿Ya tienes una cuenta? </Text>
+          <TouchableOpacity onPress={() => router.replace('/login')}>
+            <Text style={styles.footerLink}>Iniciar sesión</Text>
+          </TouchableOpacity>
+        </View>
+
+      </KeyboardAvoidingView>
 
     </SafeAreaView>
   );
