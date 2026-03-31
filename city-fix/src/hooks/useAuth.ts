@@ -41,16 +41,32 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: async (credentials: LoginPayload) => {
       const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-      return response.data;
+      const data = response.data;
+      
+      const activeToken = data.token || data.access_token;
+      // If the backend didn't supply the full user object but gave us a token
+      if (!data.user && activeToken) {
+        // Temporarily assign token for the immediate next request
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
+        try {
+          const userResp = await apiClient.get('/auth/me');
+          if (userResp.data) data.user = userResp.data;
+        } catch(e) {
+          console.warn("Failed fetching user immediately after login");
+        } finally {
+          // Cleanup default header, interceptor takes over
+          delete apiClient.defaults.headers.common['Authorization'];
+        }
+      }
+      return data;
     },
     onSuccess: (data: any) => {
-      // Save token in Zustand + SecureStore
-      const activeToken = data.token || data.access_token;
-      if (activeToken) {
-        setToken(activeToken);
-      }
       if (data.user) {
         setUser(data.user);
+      }
+      const activeToken = data.token || data.access_token;
+      if (activeToken) {
+        setToken(activeToken); // Set token LAST so the redirect happens AFTER user is set
       }
     },
   });
@@ -63,15 +79,27 @@ export const useRegister = () => {
   return useMutation({
     mutationFn: async (userData: RegisterPayload) => {
       const response = await apiClient.post<AuthResponse>('/auth/register', userData);
-      return response.data;
+      const data = response.data;
+      
+      const activeToken = data.token || data.access_token;
+      if (!data.user && activeToken) {
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
+        try {
+          const userResp = await apiClient.get('/auth/me');
+          if (userResp.data) data.user = userResp.data;
+        } catch(e) {} finally {
+          delete apiClient.defaults.headers.common['Authorization'];
+        }
+      }
+      return data;
     },
     onSuccess: (data: any) => {
+      if (data.user) {
+        setUser(data.user);
+      }
       const activeToken = data.token || data.access_token;
       if (activeToken) {
         setToken(activeToken);
-      }
-      if (data.user) {
-        setUser(data.user);
       }
     },
   });

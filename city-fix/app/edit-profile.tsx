@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useAuthStore } from '../src/store/authStore';
+import apiClient from '../src/api/axios';
 
 const { width } = Dimensions.get('window');
 
@@ -18,6 +20,41 @@ const colors = {
 
 export default function EditProfileScreen() {
   const router = useRouter();
+  const { user, setUser } = useAuthStore();
+
+  const [firstName, setFirstName] = useState(user?.first_name || '');
+  const [lastName, setLastName] = useState(user?.last_name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Intenta enviar los datos al backend (si el endpoint existe)
+      const response = await apiClient.put('/auth/profile', {
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone
+      });
+      // Si funciona, actualiza el estado
+      if (response.data && response.data.user) {
+         setUser(response.data.user);
+      } else {
+         // Fallback manual si el backend no retorna el usuario
+         if(user) setUser({ ...user, first_name: firstName, last_name: lastName, phone: phone });
+      }
+      Alert.alert("Éxito", "Perfil actualizado correctamente");
+      router.back();
+    } catch (error) {
+      console.warn("Falló la actualización desde el API, actualizando sólo localmente", error);
+      // Fallback update local state so UI works anyway
+      if(user) setUser({ ...user, first_name: firstName, last_name: lastName, phone: phone });
+      Alert.alert("Aviso", "Perfil actualizado localmente (API no lista aún)");
+      router.back();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -74,7 +111,8 @@ export default function EditProfileScreen() {
                   <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.textInput}
-                    value="jefferson"
+                    value={firstName}
+                    onChangeText={setFirstName}
                     placeholder="Tu nombre"
                     placeholderTextColor={colors.textLight}
                   />
@@ -90,7 +128,8 @@ export default function EditProfileScreen() {
                   <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.textInput}
-                    value="Perez"
+                    value={lastName}
+                    onChangeText={setLastName}
                     placeholder="Tu apellido"
                     placeholderTextColor={colors.textLight}
                   />
@@ -104,7 +143,8 @@ export default function EditProfileScreen() {
                   <Feather name="phone" size={18} color={colors.textLight} style={styles.inputIcon} />
                   <TextInput 
                     style={styles.textInput}
-                    value="35957273"
+                    value={phone}
+                    onChangeText={setPhone}
                     placeholder="Tu teléfono"
                     keyboardType="phone-pad"
                     placeholderTextColor={colors.textLight}
@@ -120,28 +160,36 @@ export default function EditProfileScreen() {
               
               <View style={styles.accountRow}>
                 <Text style={styles.accountLabel}>Correo Electrónico</Text>
-                <Text style={styles.accountValue}>jefferson@gmail.com</Text>
+                <Text style={styles.accountValue}>{user?.email || 'No registrado'}</Text>
               </View>
 
               <View style={styles.divider} />
 
               <View style={styles.accountRow}>
                 <Text style={styles.accountLabel}>ID de Usuario</Text>
-                <Text style={styles.accountValue}>1774071819367</Text>
+                <Text style={styles.accountValue}>{user?.id?.toString() || '...'}</Text>
               </View>
 
               <View style={styles.divider} />
 
               <View style={styles.accountRow}>
                 <Text style={styles.accountLabel}>Miembro Desde</Text>
-                <Text style={styles.accountValue}>Febrero 2026</Text>
+                <Text style={styles.accountValue}>
+                  {user && (user as any).created_at 
+                    ? new Date((user as any).created_at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }) 
+                    : 'Febrero 2026'}
+                </Text>
               </View>
             </View>
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity style={styles.saveButton} onPress={() => router.back()}>
-                <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+                )}
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>

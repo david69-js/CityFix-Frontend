@@ -138,7 +138,7 @@ export default function LoginScreen() {
                   <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity style={styles.forgotPassword} onPress={() => router.push('/forgot-password')}>
                 <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
             </View>

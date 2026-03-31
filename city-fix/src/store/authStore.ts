@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
+import apiClient from '../api/axios';
 
 interface User {
   id: number;
@@ -29,8 +30,8 @@ export const useAuthStore = create<AuthState>((set: any) => ({
   isLoading: true,
 
   setToken: async (token: string) => {
+    set({ token }); // Update global state immediately to prevent layout bouncing
     await setItemAsync('userToken', token);
-    set({ token });
   },
 
   setUser: (user: User) => {
@@ -48,8 +49,16 @@ export const useAuthStore = create<AuthState>((set: any) => ({
       const token = await getItemAsync('userToken');
       if (token) {
         set({ token });
-        // NOTE: Here you would normally fetch the user profile using the token
-        // e.g. using apiClient.get('/user') or something similar and call setUser.
+        try {
+          const response = await apiClient.get('/auth/me');
+          if (response.data) {
+            set({ user: response.data });
+          }
+        } catch (error) {
+          console.warn('Failed to fetch user profile automatically:', error);
+          // If the token is invalid or expired, we might want to log out
+          // but for now we just log a warning.
+        }
       }
     } catch (e) {
       // Failed to restore token
