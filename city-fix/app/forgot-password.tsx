@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingVi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useForgotPassword } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8',
@@ -17,16 +18,27 @@ const colors = {
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  const forgotPasswordMutation = useForgotPassword();
 
   const handleSendCode = () => {
     if (!email) return;
-    setIsSending(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSending(false);
-      router.push('/reset-password');
-    }, 1500);
+    setErrorMessage('');
+    
+    forgotPasswordMutation.mutate({ email }, {
+      onSuccess: () => {
+        router.push({ pathname: '/reset-password', params: { email } });
+      },
+      onError: (e: any) => {
+        const data = e?.response?.data;
+        if (data?.message) {
+          setErrorMessage(data.message);
+        } else {
+          setErrorMessage('Error al enviar el código de recuperación.');
+        }
+      }
+    });
   };
 
   const handleBack = () => {
@@ -65,6 +77,13 @@ export default function ForgotPasswordScreen() {
           </View>
 
           <View style={styles.formContainer}>
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Email Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Correo Electrónico</Text>
@@ -85,11 +104,11 @@ export default function ForgotPasswordScreen() {
             <TouchableOpacity 
               style={[styles.primaryButton, !email && styles.disabledButton]} 
               onPress={handleSendCode} 
-              disabled={isSending || !email}
+              disabled={forgotPasswordMutation.isPending || !email}
               activeOpacity={0.8}
             >
               <Text style={styles.primaryButtonText}>
-                {isSending ? 'Enviando...' : 'Enviar Código de Recuperación'}
+                {forgotPasswordMutation.isPending ? 'Enviando...' : 'Enviar Código de Recuperación'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -111,6 +130,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: colors.textTitle, marginBottom: 12, textAlign: 'center' },
   subtitle: { fontSize: 15, color: colors.textSub, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10 },
   formContainer: { marginBottom: 20 },
+  errorContainer: { flexDirection: 'row', backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
+  errorText: { color: '#EF4444', marginLeft: 8, fontSize: 13, fontWeight: '500', flex: 1 },
   inputGroup: { marginBottom: 30 },
   label: { fontSize: 13, fontWeight: '700', color: colors.textTitle, marginBottom: 8 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, height: 52, backgroundColor: colors.surface },

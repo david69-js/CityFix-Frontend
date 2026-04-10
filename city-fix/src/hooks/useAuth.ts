@@ -16,6 +16,18 @@ export interface RegisterPayload {
   phone?: string;
   avatar?: string;
   role_id?: number;
+  invitation_code?: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  token: string;
+  password?: string;
+  password_confirmation?: string;
 }
 
 interface AuthResponse {
@@ -101,6 +113,24 @@ export const useRegister = () => {
       if (activeToken) {
         setToken(activeToken);
       }
+    },
+  });
+};
+
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: async (payload: ForgotPasswordPayload) => {
+      const response = await apiClient.post('/auth/forgot-password', payload);
+      return response.data;
+    },
+  });
+};
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: async (payload: ResetPasswordPayload) => {
+      const response = await apiClient.post('/auth/reset-password', payload);
+      return response.data;
     },
   });
 };

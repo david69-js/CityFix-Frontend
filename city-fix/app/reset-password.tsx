@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useResetPassword } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8',
@@ -17,31 +18,53 @@ const colors = {
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{email?: string, token?: string}>();
   
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(params.token || '');
+  const [email, setEmail] = useState(params.email || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const resetPasswordMutation = useResetPassword();
 
   const handleSavePassword = () => {
-    if (!token || !newPassword || newPassword !== confirmPassword) return;
+    if (!token || !email || !newPassword || newPassword !== confirmPassword) return;
     
-    setIsSaving(true);
-    // Simulate backend API call
-    setTimeout(() => {
-      setIsSaving(false);
-      setSuccess(true);
-      
-      // Auto-redirect to login after short delay
-      setTimeout(() => {
-        router.replace('/login');
-      }, 2000);
-      
-    }, 1500);
+    setErrorMessage('');
+    
+    resetPasswordMutation.mutate({
+      email,
+      token,
+      password: newPassword,
+      password_confirmation: confirmPassword
+    }, {
+      onSuccess: () => {
+        setSuccess(true);
+        setTimeout(() => {
+          router.replace('/login');
+        }, 2500);
+      },
+      onError: (e: any) => {
+        const data = e?.response?.data;
+        if (data?.message) {
+          setErrorMessage(data.message);
+        } else if (data?.errors) {
+          const firstError = Object.values(data.errors)[0] as string[];
+          if (firstError && firstError.length > 0) {
+            setErrorMessage(firstError[0]);
+          } else {
+            setErrorMessage('Error de validación.');
+          }
+        } else {
+          setErrorMessage('Error al restablecer la contraseña. Verifica tu token e inténtalo de nuevo.');
+        }
+      }
+    });
   };
 
   const handleBack = () => {
@@ -86,6 +109,29 @@ export default function ResetPasswordScreen() {
           {!success && (
             <View style={styles.formContainer}>
               
+              {errorMessage ? (
+                <View style={[styles.errorContainer, { marginBottom: 20 }]}>
+                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                  <Text style={styles.errorTextLarge}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Correo Electrónico</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="mail-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+                  <TextInput 
+                    style={styles.textInput}
+                    placeholder="tu.correo@ejemplo.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholderTextColor={colors.textLight}
+                  />
+                </View>
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Código de Verificación</Text>
                 <View style={styles.inputWrapper}>
@@ -145,13 +191,13 @@ export default function ResetPasswordScreen() {
               </View>
 
               <TouchableOpacity 
-                style={[styles.primaryButton, (!isFormValid || isSaving) && styles.disabledButton]} 
+                style={[styles.primaryButton, (!isFormValid || resetPasswordMutation.isPending) && styles.disabledButton]} 
                 onPress={handleSavePassword} 
-                disabled={!isFormValid || isSaving}
+                disabled={!isFormValid || resetPasswordMutation.isPending}
                 activeOpacity={0.8}
               >
                 <Text style={styles.primaryButtonText}>
-                  {isSaving ? 'Guardando...' : 'Restablecer Contraseña'}
+                  {resetPasswordMutation.isPending ? 'Guardando...' : 'Restablecer Contraseña'}
                 </Text>
               </TouchableOpacity>
               
@@ -181,6 +227,8 @@ const styles = StyleSheet.create({
   inputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, height: 52, backgroundColor: colors.surface },
   inputError: { borderColor: '#EF4444' },
   errorText: { color: '#EF4444', fontSize: 12, marginTop: 6 },
+  errorContainer: { flexDirection: 'row', backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#FCA5A5' },
+  errorTextLarge: { color: '#EF4444', marginLeft: 8, fontSize: 13, fontWeight: '500', flex: 1 },
   inputIcon: { marginRight: 12 },
   textInput: { flex: 1, fontSize: 15, color: colors.textTitle },
   eyeIcon: { padding: 8 },

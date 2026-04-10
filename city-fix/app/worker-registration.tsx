@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platfo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRegister } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#10B981', // Emerald green for workers to differentiate from blue
@@ -30,6 +31,39 @@ export default function WorkerRegistrationScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const registerMutation = useRegister();
+  
+  const handleRegister = () => {
+    setErrorMessage('');
+    registerMutation.mutate({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      password,
+      invitation_code: invitationCode
+    }, {
+      onSuccess: () => {
+        router.replace('/');
+      },
+      onError: (e: any) => {
+        const data = e?.response?.data;
+        if (data?.message) {
+          setErrorMessage(data.message);
+        } else if (data?.errors) {
+          const firstError = Object.values(data.errors)[0] as string[];
+          if (firstError && firstError.length > 0) {
+            setErrorMessage(firstError[0]);
+          } else {
+            setErrorMessage('Error de validación.');
+          }
+        } else {
+          setErrorMessage('Error de conexión o datos inválidos.');
+        }
+      }
+    });
+  };
 
   // Mock verification just for visual flow
   const handleVerifyCode = () => {
@@ -74,9 +108,16 @@ export default function WorkerRegistrationScreen() {
             </Text>
           </View>
 
-          {/* Form Fields */}
           <View style={styles.formContainer}>
             
+            {/* Error Message */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Invitation Code Section */}
             <View style={[styles.codeContainer, codeVerified && styles.codeVerifiedContainer]}>
               <Text style={styles.label}>Código de Invitación Oficial</Text>
@@ -204,9 +245,10 @@ export default function WorkerRegistrationScreen() {
               <TouchableOpacity 
                 style={[styles.primaryButton, (!codeVerified || !agreeTerms) && styles.primaryButtonDisabled]} 
                 activeOpacity={0.8}
-                disabled={!codeVerified || !agreeTerms}
+                disabled={!codeVerified || !agreeTerms || registerMutation.isPending}
+                onPress={handleRegister}
               >
-                <Text style={styles.primaryButtonText}>Registrar como Trabajador</Text>
+                <Text style={styles.primaryButtonText}>{registerMutation.isPending ? 'Creando...' : 'Registrar como Trabajador'}</Text>
               </TouchableOpacity>
 
             </View>
@@ -239,6 +281,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', color: colors.textTitle, marginBottom: 8 },
   subtitle: { fontSize: 15, color: colors.textSub, lineHeight: 22 },
   formContainer: { marginBottom: 20 },
+  errorContainer: { flexDirection: 'row', backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
+  errorText: { color: colors.error, marginLeft: 8, fontSize: 13, fontWeight: '500', flex: 1 },
   codeContainer: { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 },
   codeVerifiedContainer: { backgroundColor: colors.specialBg, borderColor: '#A7F3D0' },
   inputGroup: { marginBottom: 20 },

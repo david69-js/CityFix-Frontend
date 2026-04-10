@@ -39,8 +39,7 @@ export default function CreateAccountScreen() {
       last_name: lastName,
       email,
       phone,
-      password,
-      role_id: 2
+      password
     }, {
       onSuccess: () => {
         router.replace('/');
