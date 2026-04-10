@@ -160,7 +160,13 @@ export default function EditProfileScreen() {
               
               <View style={styles.accountRow}>
                 <Text style={styles.accountLabel}>Correo Electrónico</Text>
-                <Text style={styles.accountValue}>{user?.email || 'No registrado'}</Text>
+                <Text 
+                  style={[styles.accountValue, { flexShrink: 1, marginLeft: 16, textAlign: 'right' }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {user?.email || 'No registrado'}
+                </Text>
               </View>
 
               <View style={styles.divider} />

@@ -239,7 +239,7 @@ export default function ReportIssueScreen() {
                 ) : (
                   <Ionicons name={latitude ? "checkmark-circle" : "location-outline"} size={16} color={latitude ? colors.primary : '#F59E0B'} />
                 )}
-                <Text style={[styles.useCurrentLocationText, latitude && { color: colors.primary }]}>
+                <Text style={[styles.useCurrentLocationText, latitude !== null ? { color: colors.primary } : undefined]}>
                   {latitude ? 'Ubicación GPS capturada' : 'Obtener mi ubicación GPS actual *'}
                 </Text>
               </TouchableOpacity>
