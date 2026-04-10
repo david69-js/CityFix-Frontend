@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
+import { Issue, PaginatedResponse } from '../types/api';
 
 export interface CreateIssuePayload {
   category_id: number;
@@ -49,5 +50,27 @@ export const useCreateIssue = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['issues'] });
     },
+  });
+};
+
+export const useIssuesFeed = (perPage = 15) => {
+  return useQuery({
+    queryKey: ['issues', 'feed', perPage],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<Issue>>(`/issues/feed?per_page=${perPage}`);
+      return response.data;
+    },
+  });
+};
+
+export const useIssueDetails = (id: number | string | null) => {
+  return useQuery({
+    queryKey: ['issues', 'details', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await apiClient.get<Issue>(`/issues/${id}`);
+      return response.data;
+    },
+    enabled: !!id,
   });
 };

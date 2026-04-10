@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator } from 'react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useIssueDetails } from '../src/hooks/useIssues';
+import { formatDate } from '../src/utils/date';
 
 const { width } = Dimensions.get('window');
 
@@ -14,8 +16,12 @@ const colors = {
   textLight: '#9CA3AF', 
   border: '#E5E7EB',
   
-  // Tag colors
+  // Tag colors (Fallbacks)
+  tagDefaultBg: '#4B5563',
   tagGarbageBg: '#F59E0B',
+  tagRoadsBg: '#4B5563',
+  tagLightingBg: '#EAB308',
+  tagWaterBg: '#3B82F6',
 
   // Status colors
   statusProgressBg: '#EEF4FF',
@@ -29,8 +35,58 @@ const colors = {
   blueDot: '#3B82F6',
 };
 
+// Helper for Category Colors
+const getCategoryColor = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('basura')) return colors.tagGarbageBg;
+  if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
+  if (n.includes('luz') || n.includes('iluminación')) return colors.tagLightingBg;
+  if (n.includes('agua')) return colors.tagWaterBg;
+  return colors.tagDefaultBg;
+};
+
+// Helper for Status Icons
+const getStatusIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('pendiente') || n.includes('reportado')) return 'alert-circle-outline';
+  if (n.includes('proceso') || n.includes('camino')) return 'time-outline';
+  if (n.includes('resuelto') || n.includes('listo')) return 'checkmark-circle-outline';
+  return 'help-circle-outline';
+};
+
 export default function IssueDetailsScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  
+  const { data: issue, isLoading, error } = useIssueDetails(id as string);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 12, color: colors.textSub }}>Cargando detalles...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !issue) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textLight} />
+          <Text style={{ marginTop: 12, fontSize: 16, color: colors.textTitle, fontWeight: 'bold' }}>Error al cargar el reporte</Text>
+          <Text style={{ marginTop: 4, textAlign: 'center', color: colors.textSub }}>No pudimos encontrar la información solicitada.</Text>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.commentBtn, { width: '100%', marginTop: 20, marginLeft: 0 }]}>
+            <Text style={styles.commentBtnText}>Regresar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const mainImage = issue.images && issue.images.length > 0 ? issue.images[0].full_url : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -51,34 +107,41 @@ export default function IssueDetailsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
           {/* Main Image */}
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=600&q=80' }} 
-            style={styles.heroImage} 
-            resizeMode="cover"
-          />
+          {mainImage ? (
+            <Image 
+              source={{ uri: mainImage }} 
+              style={styles.heroImage} 
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.heroImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={48} color={colors.textLight} />
+              <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
+            </View>
+          )}
 
           <View style={styles.contentPadding}>
             
             {/* Status Banner */}
-            <View style={[styles.statusBanner, { backgroundColor: colors.statusProgressBg }]}>
-              <Ionicons name="time-outline" size={24} color={colors.statusProgressFg} style={styles.statusBannerIcon} />
+            <View style={[styles.statusBanner, { backgroundColor: (issue.status?.color || colors.primary) + '15' }]}>
+              <Ionicons name={getStatusIcon(issue.status?.name || '') as any} size={24} color={issue.status?.color || colors.primary} style={styles.statusBannerIcon} />
               <View style={styles.statusBannerTextContainer}>
-                <Text style={[styles.statusBannerTitle, { color: colors.statusProgressFg }]}>En proceso</Text>
-                <Text style={[styles.statusBannerSub, { color: '#60A5FA' }]}>Las autoridades están trabajando para resolver este problema</Text>
+                <Text style={[styles.statusBannerTitle, { color: issue.status?.color || colors.primary }]}>{issue.status?.name || 'Pendiente'}</Text>
+                <Text style={[styles.statusBannerSub, { color: colors.textSub }]}>Estado actual de este reporte ciudadano</Text>
               </View>
             </View>
 
             {/* Title & Tag */}
             <View style={styles.titleRow}>
-              <Text style={styles.issueTitle}>Basurero desbordado</Text>
-              <View style={[styles.categoryTag, { backgroundColor: colors.tagGarbageBg }]}>
-                <Text style={styles.categoryTagText}>Basura</Text>
+              <Text style={styles.issueTitle}>{issue.title}</Text>
+              <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(issue.category?.name || '') }]}>
+                <Text style={styles.categoryTagText}>{issue.category?.name || 'General'}</Text>
               </View>
             </View>
 
             {/* Description */}
             <Text style={styles.descriptionText}>
-              Basurero grande desbordado desde hace 3 días en la esquina de la Calle Principal.
+              {issue.description || 'Sin descripción adicional proporcionada.'}
             </Text>
 
             {/* Info Card */}
@@ -87,7 +150,7 @@ export default function IssueDetailsScreen() {
                 <Ionicons name="location-outline" size={22} color={colors.textLight} style={styles.infoIcon} />
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Ubicación</Text>
-                  <Text style={styles.infoValue}>Calle 5 # 10-20</Text>
+                  <Text style={styles.infoValue}>{issue.location}</Text>
                 </View>
               </View>
 
@@ -95,7 +158,7 @@ export default function IssueDetailsScreen() {
                 <Ionicons name="calendar-outline" size={22} color={colors.textLight} style={styles.infoIcon} />
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Reportado el</Text>
-                  <Text style={styles.infoValue}>Martes, 3 de Febrero de 2026</Text>
+                  <Text style={styles.infoValue}>{formatDate(issue.created_at)}</Text>
                 </View>
               </View>
             </View>
@@ -104,47 +167,32 @@ export default function IssueDetailsScreen() {
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.voteBtn}>
                 <Ionicons name="thumbs-up" size={18} color={colors.primary} style={styles.btnIcon} />
-                <Text style={styles.voteBtnText}>Votado (24)</Text>
+                <Text style={styles.voteBtnText}>Voto ({issue.upvotes_count || 0})</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.commentBtn}>
                 <Ionicons name="chatbubble-outline" size={18} color={colors.textTitle} style={styles.btnIcon} />
-                <Text style={styles.commentBtnText}>Comentar</Text>
+                <Text style={styles.commentBtnText}>Comentar ({issue.comments_count || 0})</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Timeline */}
+            {/* Timeline (Static as no endpoint provided) */}
             <Text style={styles.sectionTitle}>Línea de Tiempo de Actualizaciones</Text>
             
             <View style={styles.timelineContainer}>
-              
-              {/* Timeline Item 1 */}
               <View style={styles.timelineItem}>
                 <View style={styles.timelineNodeContainer}>
                   <View style={[styles.timelineDot, { backgroundColor: colors.orangeDot }]} />
-                  <View style={styles.timelineLine} />
-                </View>
-                <View style={styles.timelineContent}>
-                  <Text style={styles.timelineTitle}>Problema verificado por inspector municipal</Text>
-                  <Text style={styles.timelineTime}>Feb 4 a las 2:15 PM</Text>
-                </View>
-              </View>
-
-              {/* Timeline Item 2 */}
-              <View style={styles.timelineItem}>
-                <View style={styles.timelineNodeContainer}>
-                  <View style={[styles.timelineDot, { backgroundColor: colors.blueDot }]} />
                   <View style={[styles.timelineLine, { backgroundColor: 'transparent' }]} />
                 </View>
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineTitle}>Equipo de trabajo ha sido enviado al lugar</Text>
-                  <Text style={styles.timelineTime}>Feb 5 a las 10:30 AM</Text>
+                  <Text style={styles.timelineTitle}>Reporte creado correctamente</Text>
+                  <Text style={styles.timelineTime}>{formatDate(issue.created_at)}</Text>
                 </View>
               </View>
-
             </View>
 
-            {/* Similar Issues */}
+            {/* Similar Issues (Placeholder) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No hay problemas similares reportados en esta área</Text>

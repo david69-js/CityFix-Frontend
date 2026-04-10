@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUsers } from '../src/hooks/useAuth';
+import { useIssuesFeed } from '../src/hooks/useIssues';
+import { formatDate } from '../src/utils/date';
 
 const { width } = Dimensions.get('window');
 
@@ -22,92 +24,60 @@ const colors = {
   iconGreenBg: '#ECFDF5',
   iconGreenFg: '#10B981',
 
-  // Tag colors
+  // Tag colors (Fallbacks)
+  tagDefaultBg: '#4B5563',
   tagGarbageBg: '#F59E0B',
   tagRoadsBg: '#4B5563',
   tagLightingBg: '#EAB308',
   tagWaterBg: '#3B82F6',
 
-  // Status colors
-  statusReportedBg: '#FFF2EB',
-  statusReportedFg: '#F97316',
-  statusProgressBg: '#EEF4FF',
-  statusProgressFg: '#3B82F6',
-  statusResolvedBg: '#ECFDF5',
-  statusResolvedFg: '#10B981',
-
   border: '#E5E7EB',
 };
 
-// Dummy Data
-const REPORTS = [
-  {
-    id: 1,
-    title: 'Basurero desbordado',
-    location: 'Calle 5 # 10-20',
-    tag: 'Basura',
-    tagBg: colors.tagGarbageBg,
-    status: 'En proceso',
-    statusBg: colors.statusProgressBg,
-    statusFg: colors.statusProgressFg,
-    statusIcon: 'time-outline',
-    likes: 23,
-    date: 'Feb 3',
-    imageUrl: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=200&q=80'
-  },
-  {
-    id: 2,
-    title: 'Hueco en la vía',
-    location: 'Autopista Norte, salida 45',
-    tag: 'Baches',
-    tagBg: colors.tagRoadsBg,
-    status: 'Reportado',
-    statusBg: colors.statusReportedBg,
-    statusFg: colors.statusReportedFg,
-    statusIcon: 'alert-circle-outline',
-    likes: 45,
-    date: 'Feb 4',
-    isPlaceholder: true,
-    imageUrl: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=200&q=80'
-  },
-  {
-    id: 3,
-    title: 'Alumbrado público dañado',
-    location: 'Calle 12 # 15-30',
-    tag: 'Iluminación',
-    tagBg: colors.tagLightingBg,
-    status: 'Resuelto',
-    statusBg: colors.statusResolvedBg,
-    statusFg: colors.statusResolvedFg,
-    statusIcon: 'checkmark-circle-outline',
-    likes: 15,
-    date: 'Jan 27',
-    imageUrl: 'https://images.unsplash.com/photo-1544973315-96538dce7fb6?auto=format&fit=crop&w=200&q=80'
-  },
-  {
-    id: 4,
-    title: 'Fuga de agua en la acera',
-    location: 'Calle 23 # 18-30',
-    tag: 'Agua',
-    tagBg: colors.tagWaterBg,
-    status: 'En proceso',
-    statusBg: colors.statusProgressBg,
-    statusFg: colors.statusProgressFg,
-    statusIcon: 'time-outline',
-    likes: 31,
-    date: 'Feb 2',
-    isPlaceholder: true
-  }
-];
+// Helper for Category Colors (since backend only provides name/icon)
+const getCategoryColor = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('basura')) return colors.tagGarbageBg;
+  if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
+  if (n.includes('luz') || n.includes('iluminación')) return colors.tagLightingBg;
+  if (n.includes('agua')) return colors.tagWaterBg;
+  return colors.tagDefaultBg;
+};
+
+// Helper for Status Icons
+const getStatusIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('pendiente') || n.includes('reportado')) return 'alert-circle-outline';
+  if (n.includes('proceso') || n.includes('camino')) return 'time-outline';
+  if (n.includes('resuelto') || n.includes('listo')) return 'checkmark-circle-outline';
+  return 'help-circle-outline';
+};
 
 export default function CityReporterDashboard() {
   const router = useRouter();
   const { data: users, isLoading: usersLoading } = useUsers();
+  const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed();
+
+  const reports = feedData?.data || [];
+  
+  // Calculate simple stats from feed
+  const stats = {
+    reported: reports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
+    inProgress: reports.filter(r => r.status?.name.toLowerCase().includes('proceso')).length,
+    resolved: reports.filter(r => r.status?.name.toLowerCase().includes('resuelto')).length,
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
+        }
+      >
 
         {/* Header Background */}
         <View style={styles.headerBg} />
@@ -135,7 +105,7 @@ export default function CityReporterDashboard() {
             <View style={[styles.statIconContainer, { backgroundColor: colors.iconOrangeBg }]}>
               <Ionicons name="alert-outline" size={20} color={colors.iconOrangeFg} />
             </View>
-            <Text style={styles.statValue}>1</Text>
+            <Text style={styles.statValue}>{stats.reported}</Text>
             <Text style={styles.statLabel}>Reportado</Text>
           </View>
 
@@ -143,7 +113,7 @@ export default function CityReporterDashboard() {
             <View style={[styles.statIconContainer, { backgroundColor: colors.iconBlueBg }]}>
               <Ionicons name="trending-up" size={20} color={colors.iconBlueFg} />
             </View>
-            <Text style={styles.statValue}>2</Text>
+            <Text style={styles.statValue}>{stats.inProgress}</Text>
             <Text style={styles.statLabel}>En Proceso</Text>
           </View>
 
@@ -151,7 +121,7 @@ export default function CityReporterDashboard() {
             <View style={[styles.statIconContainer, { backgroundColor: colors.iconGreenBg }]}>
               <Ionicons name="trending-up" size={20} color={colors.iconGreenFg} />
             </View>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{stats.resolved}</Text>
             <Text style={styles.statLabel}>Resuelto</Text>
           </View>
         </View>
@@ -174,56 +144,68 @@ export default function CityReporterDashboard() {
         </View>
 
         <View style={styles.listContainer}>
-          {REPORTS.map((report) => (
-            <TouchableOpacity 
-              key={report.id} 
-              style={styles.reportCard}
-              onPress={() => router.push('/issue-details')}
-              activeOpacity={0.8}
-            >
-              
-              {/* Image Column */}
-              {report.isPlaceholder ? (
-                <View style={styles.imagePlaceholder}>
-                  <View style={styles.questionMarkBox}>
-                    <Text style={styles.questionMarkText}>?</Text>
-                  </View>
-                </View>
-              ) : (
-                <Image source={{ uri: report.imageUrl }} style={styles.reportImage} />
-              )}
-
-              {/* Details Column */}
-              <View style={styles.reportDetails}>
+          {feedLoading && !isRefetching ? (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ marginTop: 12, color: colors.textSub }}>Cargando reportes...</Text>
+            </View>
+          ) : reports.length === 0 ? (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Ionicons name="document-text-outline" size={48} color={colors.textLight} />
+              <Text style={{ marginTop: 12, color: colors.textSub }}>No hay reportes todavía.</Text>
+            </View>
+          ) : (
+            reports.map((report) => (
+              <TouchableOpacity 
+                key={report.id} 
+                style={styles.reportCard}
+                onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
+                activeOpacity={0.8}
+              >
                 
-                <View style={styles.reportHeaderRow}>
-                  <Text style={styles.reportTitle} numberOfLines={1}>{report.title}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: report.statusBg }]}>
-                    <Ionicons name={report.statusIcon as any} size={12} color={report.statusFg} />
-                    <Text style={[styles.statusText, { color: report.statusFg }]}>{report.status}</Text>
+                {/* Image Column */}
+                {!report.images || report.images.length === 0 ? (
+                  <View style={styles.imagePlaceholder}>
+                    <View style={styles.questionMarkBox}>
+                      <Text style={styles.questionMarkText}>?</Text>
+                    </View>
                   </View>
-                </View>
+                ) : (
+                  <Image source={{ uri: report.images[0].full_url }} style={styles.reportImage} />
+                )}
 
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={14} color={colors.textLight} />
-                  <Text style={styles.locationText}>{report.location}</Text>
-                </View>
-
-                <View style={styles.reportFooterRow}>
-                  <View style={[styles.categoryTag, { backgroundColor: report.tagBg }]}>
-                    <Text style={styles.categoryTagText}>{report.tag}</Text>
-                  </View>
+                {/* Details Column */}
+                <View style={styles.reportDetails}>
                   
-                  <View style={styles.metaInfo}>
-                    <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
-                    <Text style={styles.metaText}>{report.likes}</Text>
-                    <Text style={[styles.metaText, { marginLeft: 12 }]}>{report.date}</Text>
+                  <View style={styles.reportHeaderRow}>
+                    <Text style={styles.reportTitle} numberOfLines={1}>{report.title}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: report.status?.color + '20' || '#F3F4F6' }]}>
+                      <Ionicons name={getStatusIcon(report.status?.name || '') as any} size={12} color={report.status?.color || colors.textSub} />
+                      <Text style={[styles.statusText, { color: report.status?.color || colors.textSub }]}>{report.status?.name || 'Pendiente'}</Text>
+                    </View>
                   </View>
-                </View>
 
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color={colors.textLight} />
+                    <Text style={styles.locationText} numberOfLines={1}>{report.location}</Text>
+                  </View>
+
+                  <View style={styles.reportFooterRow}>
+                    <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(report.category?.name || '') }]}>
+                      <Text style={styles.categoryTagText}>{report.category?.name || 'General'}</Text>
+                    </View>
+                    
+                    <View style={styles.metaInfo}>
+                      <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
+                      <Text style={styles.metaText}>{report.upvotes_count || 0}</Text>
+                      <Text style={[styles.metaText, { marginLeft: 12 }]}>{formatDate(report.created_at)}</Text>
+                    </View>
+                  </View>
+
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         {/* Spacer for bottom tab */}

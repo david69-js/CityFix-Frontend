@@ -102,7 +102,7 @@ export default function ResetPasswordScreen() {
             <Text style={styles.subtitle}>
               {success 
                 ? 'Tu contraseña ha sido cambiada exitosamente. Redirigiendo al inicio de sesión...' 
-                : 'Ingresa el código que enviamos a tu correo y tu nueva contraseña.'}
+                : 'Ingresa tu nueva contraseña para restablecer el acceso a tu cuenta.'}
             </Text>
           </View>
 
@@ -118,32 +118,15 @@ export default function ResetPasswordScreen() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Correo Electrónico</Text>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="mail-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
                   <TextInput 
-                    style={styles.textInput}
+                    style={[styles.textInput, { color: colors.textSub }]}
                     placeholder="tu.correo@ejemplo.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
-                    onChangeText={setEmail}
-                    placeholderTextColor={colors.textLight}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Código de Verificación</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="keypad-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                  <TextInput 
-                    style={styles.textInput}
-                    placeholder="Escribe el código de 6 dígitos"
-                    keyboardType="default"
-                    autoCapitalize="characters"
-                    value={token}
-                    onChangeText={setToken}
-                    placeholderTextColor={colors.textLight}
+                    editable={false}
                   />
                 </View>
               </View>

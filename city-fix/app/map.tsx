@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useIssuesFeed } from '../src/hooks/useIssues';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,6 +56,46 @@ const MapGrid = () => {
 
 export default function MapScreen() {
   const router = useRouter();
+  const { data: feedData, isLoading } = useIssuesFeed();
+  const [activeFilter, setActiveFilter] = useState('Todos');
+
+  const allReports = feedData?.data || [];
+  
+  // Filtering logic
+  const filteredReports = allReports.filter(report => {
+    if (activeFilter === 'Todos') return true;
+    const statusName = report.status?.name.toLowerCase() || '';
+    if (activeFilter === 'Reportados') return statusName.includes('reportado') || statusName.includes('pendiente');
+    if (activeFilter === 'En Proceso') return statusName.includes('proceso');
+    if (activeFilter === 'Resueltos') return statusName.includes('resuelto');
+    return true;
+  });
+
+  const getCounts = () => ({
+    all: allReports.length,
+    reported: allReports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
+    inProgress: allReports.filter(r => r.status?.name.toLowerCase().includes('proceso')).length,
+    resolved: allReports.filter(r => r.status?.name.toLowerCase().includes('resuelto')).length,
+  });
+
+  const counts = getCounts();
+
+  // Helper to place pins deterministically on the "mockup" map based on their ID
+  // since we don't have a real coordinate-to-screen mapping without a real library.
+  const getPinPosition = (id: number, index: number) => {
+    // These are just illustrative positions for the mockup
+    const seeds = [
+      { top: '25%', left: '15%' },
+      { top: '45%', left: '15%' },
+      { top: '25%', left: '45%' },
+      { top: '25%', left: '75%' },
+      { top: '55%', left: '40%' },
+      { top: '15%', left: '60%' },
+      { top: '70%', left: '20%' },
+      { top: '40%', left: '80%' },
+    ];
+    return seeds[index % seeds.length];
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -75,20 +116,40 @@ export default function MapScreen() {
         {/* Filters Scroll Menu */}
         <View style={styles.filtersWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
-            <TouchableOpacity style={[styles.filterChip, styles.filterChipActive]}>
-              <Text style={[styles.filterText, styles.filterTextActive]}>Todos (4)</Text>
+            <TouchableOpacity 
+              style={[styles.filterChip, activeFilter === 'Todos' && styles.filterChipActive]}
+              onPress={() => setActiveFilter('Todos')}
+            >
+              <Text style={[styles.filterText, activeFilter === 'Todos' && styles.filterTextActive]}>
+                Todos ({counts.all})
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.filterChip}>
-              <Text style={styles.filterText}>Reportados (1)</Text>
+            <TouchableOpacity 
+              style={[styles.filterChip, activeFilter === 'Reportados' && styles.filterChipActive]}
+              onPress={() => setActiveFilter('Reportados')}
+            >
+              <Text style={[styles.filterText, activeFilter === 'Reportados' && styles.filterTextActive]}>
+                Reportados ({counts.reported})
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.filterChip}>
-              <Text style={styles.filterText}>En Proceso (2)</Text>
+            <TouchableOpacity 
+              style={[styles.filterChip, activeFilter === 'En Proceso' && styles.filterChipActive]}
+              onPress={() => setActiveFilter('En Proceso')}
+            >
+              <Text style={[styles.filterText, activeFilter === 'En Proceso' && styles.filterTextActive]}>
+                En Proceso ({counts.inProgress})
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.filterChip}>
-              <Text style={styles.filterText}>Resueltos (1)</Text>
+            <TouchableOpacity 
+              style={[styles.filterChip, activeFilter === 'Resueltos' && styles.filterChipActive]}
+              onPress={() => setActiveFilter('Resueltos')}
+            >
+              <Text style={[styles.filterText, activeFilter === 'Resueltos' && styles.filterTextActive]}>
+                Resueltos ({counts.resolved})
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -97,38 +158,30 @@ export default function MapScreen() {
         <View style={styles.mapArea}>
           <MapGrid />
 
-          {/* Map Pins (Absolutely positioned to match the screenshot roughly) */}
-          <View style={[styles.pinWrapper, { top: '25%', left: '15%' }]}>
-            <View style={[styles.pinOuter, { backgroundColor: colors.pinBlueBg }]}>
-              <View style={[styles.pinInner, { backgroundColor: colors.pinBlueFg }]}>
-                <Ionicons name="location-outline" size={14} color="#FFF" />
-              </View>
+          {isLoading ? (
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-          </View>
-
-          <View style={[styles.pinWrapper, { top: '45%', left: '15%' }]}>
-            <View style={[styles.pinOuter, { backgroundColor: colors.pinBlueBg }]}>
-              <View style={[styles.pinInner, { backgroundColor: colors.pinBlueFg }]}>
-                <Ionicons name="location-outline" size={14} color="#FFF" />
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.pinWrapper, { top: '25%', left: '45%' }]}>
-            <View style={[styles.pinOuter, { backgroundColor: colors.pinOrangeBg }]}>
-              <View style={[styles.pinInner, { backgroundColor: colors.pinOrangeFg }]}>
-                <Ionicons name="location-outline" size={14} color="#FFF" />
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.pinWrapper, { top: '25%', left: '75%' }]}>
-            <View style={[styles.pinOuter, { backgroundColor: colors.pinGreenBg }]}>
-              <View style={[styles.pinInner, { backgroundColor: colors.pinGreenFg }]}>
-                <Ionicons name="location-outline" size={14} color="#FFF" />
-              </View>
-            </View>
-          </View>
+          ) : (
+            filteredReports.map((report, index) => {
+              const pos = getPinPosition(report.id, index);
+              const color = report.status?.color || colors.pinBlueFg;
+              
+              return (
+                <TouchableOpacity 
+                  key={report.id} 
+                  style={[styles.pinWrapper, { top: pos.top as any, left: pos.left as any }]}
+                  onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
+                >
+                  <View style={[styles.pinOuter, { backgroundColor: color + '20' }]}>
+                    <View style={[styles.pinInner, { backgroundColor: color }]}>
+                      <Ionicons name="location-outline" size={14} color="#FFF" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
 
           {/* Zoom Controls */}
           <View style={styles.zoomControls}>

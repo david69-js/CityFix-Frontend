@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useCreateIssue } from '../src/hooks/useIssues';
+import { useCategories } from '../src/hooks/useCategories';
 
 const { width } = Dimensions.get('window');
 
@@ -20,19 +21,24 @@ const colors = {
   danger: '#EF4444', 
 };
 
-// IDs adjusted assuming 1-6 standard, the payload example used category_id: 3.
-const CATEGORIES = [
-  { id: 1, name: 'Basura', icon: 'trash-outline' },
-  { id: 2, name: 'Baches', icon: 'warning-outline' },
-  { id: 3, name: 'Iluminación', icon: 'bulb-outline' },
-  { id: 4, name: 'Agua', icon: 'water-outline' },
-  { id: 5, name: 'Ruido', icon: 'volume-high-outline' },
-  { id: 6, name: 'Seguridad', icon: 'shield-checkmark-outline' },
-];
+// Helper to map FontAwesome strings from backend to FontAwesome5 icon names
+const getCategoryIcon = (iconName: string) => {
+  // Convert "fa-solid fa-road" to "road"
+  if (iconName.startsWith('fa-')) {
+    const parts = iconName.split(' ');
+    const name = parts[parts.length - 1]; // "fa-road"
+    return name.replace('fa-', ''); // "road"
+  }
+  return 'question';
+};
 
 export default function ReportIssueScreen() {
   const router = useRouter();
   
+  // -- API Hooks --
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
+  const categories = categoriesData || [];
+
   // -- Form State --
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [title, setTitle] = useState('');
@@ -55,7 +61,7 @@ export default function ReportIssueScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });
@@ -176,30 +182,38 @@ export default function ReportIssueScreen() {
                 Categoría <Text style={styles.asterisk}>*</Text>
               </Text>
               <View style={styles.categoryGrid}>
-                {CATEGORIES.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.categoryCard,
-                      selectedCategory === category.id && styles.categoryCardSelected
-                    ]}
-                    onPress={() => setSelectedCategory(category.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={category.icon as any}
-                      size={28}
-                      color={selectedCategory === category.id ? colors.primary : colors.textTitle}
-                      style={{ marginBottom: 8 }}
-                    />
-                    <Text style={[
-                      styles.categoryName,
-                      selectedCategory === category.id && styles.categoryNameSelected
-                    ]}>
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {categoriesLoading ? (
+                  <View style={{ width: '100%', padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : categories.length === 0 ? (
+                  <Text style={{ color: colors.textLight, fontSize: 13 }}>No se encontraron categorías.</Text>
+                ) : (
+                  categories.map((category) => (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.categoryCard,
+                        selectedCategory === category.id && styles.categoryCardSelected
+                      ]}
+                      onPress={() => setSelectedCategory(category.id)}
+                      activeOpacity={0.7}
+                    >
+                      <FontAwesome5
+                        name={getCategoryIcon(category.icon)}
+                        size={22}
+                        color={selectedCategory === category.id ? colors.primary : colors.textTitle}
+                        style={{ marginBottom: 8 }}
+                      />
+                      <Text style={[
+                        styles.categoryName,
+                        selectedCategory === category.id && styles.categoryNameSelected
+                      ]} numberOfLines={1}>
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
               </View>
             </View>
 
