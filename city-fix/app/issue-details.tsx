@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
+import { useAuthStore } from '../src/store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -56,9 +57,78 @@ const getStatusIcon = (name: string) => {
 
 export default function IssueDetailsScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { id } = useLocalSearchParams();
   
-  const { data: issue, isLoading, error } = useIssueDetails(id as string);
+  const { data: issue, isLoading, error } = useIssueDetails(id as string, user?.id);
+  const { data: historyData } = useIssueHistory(id as string);
+  const addCommentMutation = useAddComment();
+  const toggleUpvoteMutation = useToggleUpvote();
+  const updateStatusMutation = useUpdateIssueStatus();
+  const assignWorkerMutation = useAssignWorker();
+  const { data: workers } = useWorkers();
+  
+  const [newComment, setNewComment] = React.useState('');
+  const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
+  const [assignmentNotes, setAssignmentNotes] = React.useState('');
+
+  const scrollRef = React.useRef<ScrollView>(null);
+  const commentInputRef = React.useRef<TextInput>(null);
+
+  const handleAssignWorker = () => {
+    if (!issue || !selectedWorker) return;
+    assignWorkerMutation.mutate({
+      issueId: issue.id,
+      workerId: selectedWorker,
+      notes: assignmentNotes.trim()
+    }, {
+      onSuccess: () => {
+        setSelectedWorker(null);
+        setAssignmentNotes('');
+        alert('Trabajador asignado correctamente');
+      },
+      onError: (e: any) => {
+        console.log("Assignment error:", e?.response?.data || e);
+        const data = e?.response?.data;
+        alert('Error: ' + (data?.message || data?.error || 'No se pudo asignar. Verifique su conexión.'));
+      }
+    });
+  };
+
+  const handleUpdateStatus = (statusId: number) => {
+    if (!issue) return;
+    updateStatusMutation.mutate({ issueId: issue.id, statusId }, {
+      onError: (e: any) => {
+        console.log("Status update error:", e?.response?.data || e);
+        const data = e?.response?.data;
+        alert('Error: ' + (data?.message || data?.error || 'No se pudo actualizar el estado.'));
+      }
+    });
+  };
+
+  const handleToggleUpvote = () => {
+    if (!issue) return;
+    toggleUpvoteMutation.mutate(issue.id);
+  };
+
+  const scrollToComment = () => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+    setTimeout(() => {
+      commentInputRef.current?.focus();
+    }, 300);
+  };
+
+  const handleCommentSubmit = () => {
+    if (!newComment.trim() || !issue) return;
+    addCommentMutation.mutate(
+      { issueId: issue.id, comment: newComment.trim() },
+      {
+        onSuccess: () => {
+          setNewComment('');
+        }
+      }
+    );
+  };
 
   if (isLoading) {
     return (
@@ -89,22 +159,28 @@ export default function IssueDetailsScreen() {
   const mainImage = issue.images && issue.images.length > 0 ? issue.images[0].full_url : null;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
         
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Detalles del Reporte</Text>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="share-social-outline" size={24} color={colors.textTitle} />
-          </TouchableOpacity>
-        </View>
+        <SafeAreaView style={{ backgroundColor: colors.surface }}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Detalles del Reporte</Text>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="share-social-outline" size={24} color={colors.textTitle} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+        >
           
           {/* Main Image */}
           {mainImage ? (
@@ -130,6 +206,95 @@ export default function IssueDetailsScreen() {
                 <Text style={[styles.statusBannerSub, { color: colors.textSub }]}>Estado actual de este reporte ciudadano</Text>
               </View>
             </View>
+
+            {/* Quick Status Update for Workers and Admins */}
+            {(user?.role_id === 1 || user?.role_id === 2) && (
+              <View style={styles.adminActionContainer}>
+                <Text style={styles.adminActionLabel}>Actualizar Estado (Gestión):</Text>
+                <View style={styles.statusButtonsRow}>
+                  <TouchableOpacity 
+                    style={[styles.statusQuickBtn, { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' }]}
+                    onPress={() => handleUpdateStatus(1)}
+                  >
+                    <Ionicons name="time-outline" size={14} color="#F59E0B" />
+                    <Text style={[styles.statusQuickBtnText, { color: '#F59E0B' }]}>Pendiente</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.statusQuickBtn, { backgroundColor: '#EEF4FF', borderColor: '#3B82F6' }]}
+                    onPress={() => handleUpdateStatus(2)}
+                  >
+                    <Ionicons name="construct-outline" size={14} color="#3B82F6" />
+                    <Text style={[styles.statusQuickBtnText, { color: '#3B82F6' }]}>En Progreso</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.statusQuickBtn, { backgroundColor: '#F0FDF4', borderColor: '#10B981' }]}
+                    onPress={() => handleUpdateStatus(3)}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={14} color="#10B981" />
+                    <Text style={[styles.statusQuickBtnText, { color: '#10B981' }]}>Resuelto</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Admin Action: Assign Worker */}
+            {user?.role_id === 1 && (
+              <View style={[styles.adminActionContainer, { backgroundColor: '#F0F9FF' }]}>
+                <Text style={styles.adminActionLabel}>Asignar a Trabajador:</Text>
+                
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  {workers?.map((worker: any) => (
+                    <TouchableOpacity
+                      key={worker.id}
+                      style={[
+                        styles.workerSelectBtn,
+                        selectedWorker === worker.id && styles.workerSelectBtnActive
+                      ]}
+                      onPress={() => setSelectedWorker(worker.id)}
+                    >
+                      <Ionicons 
+                        name="person-circle-outline" 
+                        size={20} 
+                        color={selectedWorker === worker.id ? '#FFF' : colors.primary} 
+                      />
+                      <Text style={[
+                        styles.workerSelectText,
+                        selectedWorker === worker.id && { color: '#FFF' }
+                      ]}>
+                        {worker.first_name} {worker.last_name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TextInput
+                  style={styles.assignmentNotesInput}
+                  placeholder="Notas adicionales para el trabajador..."
+                  value={assignmentNotes}
+                  onChangeText={setAssignmentNotes}
+                  multiline
+                  placeholderTextColor={colors.textLight}
+                />
+
+                <TouchableOpacity 
+                  style={[
+                    styles.assignWorkerBtn,
+                    (!selectedWorker || assignWorkerMutation.isPending) && styles.assignWorkerBtnDisabled
+                  ]}
+                  onPress={handleAssignWorker}
+                  disabled={!selectedWorker || assignWorkerMutation.isPending}
+                >
+                  {assignWorkerMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="send-outline" size={16} color="#FFF" />
+                      <Text style={styles.assignWorkerBtnText}>Enviar Asignación</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Title & Tag */}
             <View style={styles.titleRow}>
@@ -165,31 +330,113 @@ export default function IssueDetailsScreen() {
 
             {/* Action Buttons */}
             <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.voteBtn}>
-                <Ionicons name="thumbs-up" size={18} color={colors.primary} style={styles.btnIcon} />
-                <Text style={styles.voteBtnText}>Voto ({issue.upvotes_count || 0})</Text>
+              <TouchableOpacity 
+                style={[
+                  styles.voteBtn, 
+                  toggleUpvoteMutation.isPending && styles.voteBtnDisabled,
+                  issue.has_voted && styles.voteBtnActive
+                ]}
+                onPress={handleToggleUpvote}
+                disabled={toggleUpvoteMutation.isPending}
+              >
+                {toggleUpvoteMutation.isPending ? (
+                  <ActivityIndicator color={issue.has_voted ? '#FFF' : colors.primary} size="small" />
+                ) : (
+                  <>
+                    <Ionicons 
+                      name={issue.has_voted ? "thumbs-up" : "thumbs-up-outline"} 
+                      size={18} 
+                      color={issue.has_voted ? '#FFF' : colors.primary} 
+                      style={styles.btnIcon} 
+                    />
+                    <Text style={[styles.voteBtnText, issue.has_voted && styles.voteBtnTextActive]}>
+                      {issue.has_voted ? '¡Votado!' : 'Voto'} ({issue.upvotes_count || 0})
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.commentBtn}>
+              <TouchableOpacity style={styles.commentBtn} onPress={scrollToComment}>
                 <Ionicons name="chatbubble-outline" size={18} color={colors.textTitle} style={styles.btnIcon} />
                 <Text style={styles.commentBtnText}>Comentar ({issue.comments_count || 0})</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Timeline (Static as no endpoint provided) */}
+            {/* Comentarios */}
+            <Text style={styles.sectionTitle}>Comentarios ({issue.comments_count || 0})</Text>
+            {issue.comments && issue.comments.length > 0 ? (
+              <View style={styles.commentsContainer}>
+                {issue.comments.map(comment => (
+                  <View key={comment.id} style={styles.commentItem}>
+                    <View style={styles.commentHeader}>
+                      <Image source={{ uri: comment.user?.avatar || 'https://ui-avatars.com/api/?name=' + (comment.user?.first_name || 'User') }} style={styles.commentAvatar} />
+                      <View>
+                        <Text style={styles.commentUser}>{comment.user?.first_name} {comment.user?.last_name}</Text>
+                        <Text style={styles.commentTime}>{formatDate(comment.created_at)}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.commentText}>{comment.comment}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardText}>Aún no hay comentarios. Sé el primero.</Text>
+              </View>
+            )}
+
+            {/* Añadir Comentario */}
+            <View style={styles.addCommentContainer}>
+              <TextInput
+                ref={commentInputRef}
+                style={styles.commentInput}
+                placeholder="Escribe un comentario..."
+                value={newComment}
+                onChangeText={setNewComment}
+                multiline
+              />
+              <TouchableOpacity 
+                style={[styles.submitCommentBtn, (!newComment.trim() || addCommentMutation.isPending) && styles.submitCommentBtnDisabled]}
+                onPress={handleCommentSubmit}
+                disabled={!newComment.trim() || addCommentMutation.isPending}
+              >
+                {addCommentMutation.isPending ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.submitCommentBtnText}>Enviar Comentario</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Timeline (Dynamic) */}
             <Text style={styles.sectionTitle}>Línea de Tiempo de Actualizaciones</Text>
             
             <View style={styles.timelineContainer}>
+              {/* Start Node */}
               <View style={styles.timelineItem}>
                 <View style={styles.timelineNodeContainer}>
                   <View style={[styles.timelineDot, { backgroundColor: colors.orangeDot }]} />
-                  <View style={[styles.timelineLine, { backgroundColor: 'transparent' }]} />
+                  <View style={[styles.timelineLine, { backgroundColor: historyData?.history?.length > 0 ? colors.timelineLine : 'transparent' }]} />
                 </View>
                 <View style={styles.timelineContent}>
                   <Text style={styles.timelineTitle}>Reporte creado correctamente</Text>
                   <Text style={styles.timelineTime}>{formatDate(issue.created_at)}</Text>
                 </View>
               </View>
+
+              {/* History Nodes */}
+              {historyData?.history?.map((log: any, index: number) => (
+                <View key={index} style={styles.timelineItem}>
+                  <View style={styles.timelineNodeContainer}>
+                    <View style={[styles.timelineDot, { backgroundColor: log.status.toLowerCase().includes('resuelto') ? '#10B981' : colors.blueDot }]} />
+                    <View style={[styles.timelineLine, { backgroundColor: index === historyData.history.length - 1 ? 'transparent' : colors.timelineLine }]} />
+                  </View>
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineTitle}>{log.status} - {log.changed_by}</Text>
+                    <Text style={styles.timelineTime}>{formatDate(log.changed_at)} • Hace {log.time_since_last_change}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
 
             {/* Similar Issues (Placeholder) */}
@@ -225,10 +472,24 @@ export default function IssueDetailsScreen() {
             <Ionicons name="person-outline" size={24} color={colors.textLight} />
             <Text style={styles.tabLabel}>Perfil</Text>
           </TouchableOpacity>
+
+          {user?.role_id === 2 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
+              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Tareas</Text>
+            </TouchableOpacity>
+          )}
+
+          {user?.role_id === 1 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
+              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Admin</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -368,6 +629,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 8,
   },
+  voteBtnDisabled: {
+    opacity: 0.7,
+  },
+  voteBtnActive: {
+    backgroundColor: colors.primary,
+  },
   btnIcon: {
     marginRight: 8,
   },
@@ -375,6 +642,9 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
     fontSize: 15,
+  },
+  voteBtnTextActive: {
+    color: '#FFF',
   },
   commentBtn: {
     flex: 1,
@@ -444,6 +714,74 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLight,
   },
+  commentsContainer: {
+    marginBottom: 20,
+  },
+  commentItem: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  commentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  commentUser: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textTitle,
+  },
+  commentTime: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
+  commentText: {
+    fontSize: 14,
+    color: colors.textSub,
+    lineHeight: 20,
+  },
+  addCommentContainer: {
+    flexDirection: 'column',
+    marginBottom: 30,
+  },
+  commentInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    fontSize: 15,
+    marginBottom: 12,
+    color: colors.textTitle,
+  },
+  submitCommentBtn: {
+    backgroundColor: colors.primary,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitCommentBtnDisabled: {
+    opacity: 0.5,
+  },
+  submitCommentBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   emptyCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -507,5 +845,86 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 4,
     borderColor: '#FFFFFF', 
+  },
+  adminActionContainer: {
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  adminActionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSub,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  statusButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusQuickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  statusQuickBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  workerSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: '#FFF',
+    marginRight: 8,
+  },
+  workerSelectBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  workerSelectText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 6,
+  },
+  assignmentNotesInput: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    height: 60,
+    textAlignVertical: 'top',
+    marginBottom: 10,
+  },
+  assignWorkerBtn: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  assignWorkerBtnDisabled: {
+    opacity: 0.5,
+  },
+  assignWorkerBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 6,
   }
 });

@@ -57,18 +57,20 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
         
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textSub} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Editar Perfil</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <SafeAreaView style={{ backgroundColor: colors.surface }}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.textSub} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Editar Perfil</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </SafeAreaView>
 
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -230,10 +232,24 @@ export default function EditProfileScreen() {
             <Ionicons name="person-outline" size={24} color={colors.primary} />
             <Text style={[styles.tabLabel, { color: colors.primary }]}>Perfil</Text>
           </TouchableOpacity>
+
+          {user?.role_id === 2 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
+              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Tareas</Text>
+            </TouchableOpacity>
+          )}
+
+          {user?.role_id === 1 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
+              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Admin</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

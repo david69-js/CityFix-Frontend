@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React from 'react';
+import { ActivityIndicator, Dimensions, Image, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useUsers } from '../src/hooks/useAuth';
 import { useIssuesFeed } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
+import { useAuthStore } from '../src/store/authStore';
+import { useUnreadCount } from '../src/hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 
@@ -55,11 +57,13 @@ const getStatusIcon = (name: string) => {
 
 export default function CityReporterDashboard() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { data: users, isLoading: usersLoading } = useUsers();
   const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed();
+  const unreadCount = useUnreadCount();
 
   const reports = feedData?.data || [];
-  
+
   // Calculate simple stats from feed
   const stats = {
     reported: reports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
@@ -71,8 +75,8 @@ export default function CityReporterDashboard() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
@@ -85,18 +89,29 @@ export default function CityReporterDashboard() {
         {/* Header Content */}
         <SafeAreaView>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>City Fix</Text>
-            <Text style={styles.headerSubtitle}>Ayuda a mejorar tu vecindario</Text>
-
-            {/* TEST API CARD */}
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 12, marginTop: 15 }}>
-              <Text style={{color: '#FFF', fontWeight: 'bold', fontSize: 13}}>🔗 Test de Conexión Laravel API:</Text>
-              {usersLoading ? <Text style={{color: '#FFF', fontSize: 12, marginTop: 4}}>Cargando usuarios...</Text> : (
-                <Text style={{color: '#FFF', fontSize: 12, marginTop: 4}}>✅ Usuarios detectados: {users?.length || 0}</Text>
-              )}
+            <View style={styles.headerTopRow}>
+              <View>
+                <Text style={styles.headerTitle}>City Fix</Text>
+                <Text style={styles.headerSubtitle}>Ayuda a mejorar tu vecindario</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.notificationBell}
+                onPress={() => router.push('/notifications')}
+              >
+                <Ionicons name="notifications-outline" size={26} color="#FFF" />
+                {unreadCount > 0 && <View style={styles.notificationDot} />}
+              </TouchableOpacity>
             </View>
 
+            {/* TEST API CARD 
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 12, marginTop: 15 }}>
+              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 13 }}>🔗 Test de Conexión Laravel API:</Text>
+              {usersLoading ? <Text style={{ color: '#FFF', fontSize: 12, marginTop: 4 }}>Cargando usuarios...</Text> : (
+                <Text style={{ color: '#FFF', fontSize: 12, marginTop: 4 }}>✅ Usuarios detectados: {users?.length || 0}</Text>
+              )}
+          </View>*/}
           </View>
+
         </SafeAreaView>
 
         {/* Stats Row */}
@@ -156,13 +171,13 @@ export default function CityReporterDashboard() {
             </View>
           ) : (
             reports.map((report) => (
-              <TouchableOpacity 
-                key={report.id} 
+              <TouchableOpacity
+                key={report.id}
                 style={styles.reportCard}
                 onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
                 activeOpacity={0.8}
               >
-                
+
                 {/* Image Column */}
                 {!report.images || report.images.length === 0 ? (
                   <View style={styles.imagePlaceholder}>
@@ -176,7 +191,7 @@ export default function CityReporterDashboard() {
 
                 {/* Details Column */}
                 <View style={styles.reportDetails}>
-                  
+
                   <View style={styles.reportHeaderRow}>
                     <Text style={styles.reportTitle} numberOfLines={1}>{report.title}</Text>
                     <View style={[styles.statusBadge, { backgroundColor: report.status?.color + '20' || '#F3F4F6' }]}>
@@ -194,7 +209,7 @@ export default function CityReporterDashboard() {
                     <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(report.category?.name || '') }]}>
                       <Text style={styles.categoryTagText}>{report.category?.name || 'General'}</Text>
                     </View>
-                    
+
                     <View style={styles.metaInfo}>
                       <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
                       <Text style={styles.metaText}>{report.upvotes_count || 0}</Text>
@@ -235,6 +250,20 @@ export default function CityReporterDashboard() {
           <Ionicons name="person-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabLabel}>Perfil</Text>
         </TouchableOpacity>
+
+        {user?.role_id === 2 && (
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
+            <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
+            <Text style={styles.tabLabel}>Tareas</Text>
+          </TouchableOpacity>
+        )}
+
+        {user?.role_id === 1 && (
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
+            <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
+            <Text style={styles.tabLabel}>Admin</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
     </View>
@@ -258,9 +287,29 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerContent: {
-    paddingTop: 30, // for systems without nice safearea
+    paddingTop: 30,
     paddingHorizontal: 20,
     paddingBottom: 30,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  notificationBell: {
+    padding: 8,
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   headerTitle: {
     fontSize: 28,

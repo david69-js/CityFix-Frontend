@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
-import apiClient from '../api/axios';
+import apiClient, { setAuthToken } from '../api/axios';
 
 interface User {
   id: number;
@@ -30,7 +30,13 @@ export const useAuthStore = create<AuthState>((set: any) => ({
   isLoading: true,
 
   setToken: async (token: string) => {
-    set({ token }); // Update global state immediately to prevent layout bouncing
+    if (!token) {
+      console.warn('[AuthStore] setToken called with empty token');
+      return;
+    }
+    console.log('[AuthStore] Updating token in state:', token.substring(0, 10) + '...');
+    set({ token });
+    setAuthToken(token);
     await setItemAsync('userToken', token);
   },
 
@@ -39,6 +45,7 @@ export const useAuthStore = create<AuthState>((set: any) => ({
   },
 
   logout: async () => {
+    setAuthToken(null);
     await deleteItemAsync('userToken');
     set({ token: null, user: null });
   },
@@ -49,9 +56,12 @@ export const useAuthStore = create<AuthState>((set: any) => ({
       const token = await getItemAsync('userToken');
       if (token) {
         set({ token });
+        setAuthToken(token);
         try {
           const response = await apiClient.get('/auth/me');
-          if (response.data) {
+          if (response.data?.user) {
+            set({ user: response.data.user });
+          } else if (response.data) {
             set({ user: response.data });
           }
         } catch (error) {

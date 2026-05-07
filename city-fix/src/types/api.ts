@@ -3,6 +3,9 @@ export interface User {
   name: string;
   email: string;
   avatar_url?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar?: string;
 }
 
 export interface Category {
@@ -24,6 +27,15 @@ export interface IssueImage {
   issue_id: number;
   file_path: string;
   full_url: string;
+}
+
+export interface IssueComment {
+  id: number;
+  issue_id: number;
+  user_id: number;
+  comment: string;
+  created_at: string;
+  user?: User;
 }
 
 export interface Issue {
@@ -48,6 +60,9 @@ export interface Issue {
   // Counts
   upvotes_count?: number;
   comments_count?: number;
+  
+  // Comments array
+  comments?: IssueComment[];
 }
 
 export interface PaginatedResponse<T> {

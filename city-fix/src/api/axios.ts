@@ -18,12 +18,23 @@ const apiClient = axios.create({
   },
 });
 
+let authToken: string | null = null;
+
+/**
+ * Sets the authentication token in memory for immediate use by the interceptor.
+ * This helps avoid race conditions between storage and subsequent API calls.
+ */
+export const setAuthToken = (token: string | null) => {
+  authToken = token;
+};
+
 // Interceptor to add the token to every request automatically
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      // Securely fetch the token from the device or web local storage
-      const token = await getItemAsync('userToken');
+      // Use in-memory token if available, otherwise fallback to storage
+      const token = authToken || await getItemAsync('userToken');
+      
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

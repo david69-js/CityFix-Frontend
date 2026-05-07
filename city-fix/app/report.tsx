@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useCreateIssue } from '../src/hooks/useIssues';
 import { useCategories } from '../src/hooks/useCategories';
+import { useAuthStore } from '../src/store/authStore';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ const getCategoryIcon = (iconName: string) => {
 
 export default function ReportIssueScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   
   // -- API Hooks --
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
@@ -149,18 +151,20 @@ export default function ReportIssueScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
 
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textSub} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Reportar un problema</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <SafeAreaView style={{ backgroundColor: colors.surface }}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.textSub} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Reportar un problema</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </SafeAreaView>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -329,10 +333,24 @@ export default function ReportIssueScreen() {
             <Ionicons name="person-outline" size={24} color={colors.textLight} />
             <Text style={styles.tabLabel}>Perfil</Text>
           </TouchableOpacity>
+
+          {user?.role_id === 2 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
+              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Tareas</Text>
+            </TouchableOpacity>
+          )}
+
+          {user?.role_id === 1 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
+              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Admin</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRegister } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8', // Solid blue
-  background: '#FAFAFA', 
-  surface: '#FFFFFF', 
-  textTitle: '#111827', 
-  textSub: '#4B5563', 
-  textLight: '#9CA3AF', 
+  background: '#FAFAFA',
+  surface: '#FFFFFF',
+  textTitle: '#111827',
+  textSub: '#4B5563',
+  textLight: '#9CA3AF',
   border: '#D1D5DB',
   divider: '#E5E7EB',
   error: '#EF4444',
@@ -28,17 +28,29 @@ export default function CreateAccountScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const registerMutation = useRegister();
 
   const handleAuthAction = () => {
     setErrorMessage('');
+    
+    if (password !== confirmPassword) {
+      setErrorMessage('Las contraseñas no coinciden.');
+      return;
+    }
+    
+    if (password.length < 6) {
+      setErrorMessage('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
     registerMutation.mutate({
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       password
     }, {
       onSuccess: () => {
@@ -46,7 +58,9 @@ export default function CreateAccountScreen() {
       },
       onError: (e: any) => {
         const data = e?.response?.data;
-        if (data?.message) {
+        if (data?.error) {
+          setErrorMessage(data.error);
+        } else if (data?.message) {
           setErrorMessage(data.message);
         } else if (data?.errors) {
           const firstError = Object.values(data.errors)[0] as string[];
@@ -73,7 +87,7 @@ export default function CreateAccountScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
@@ -81,12 +95,12 @@ export default function CreateAccountScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Crear Cuenta</Text>
             <Text style={styles.subtitle}>
@@ -96,7 +110,7 @@ export default function CreateAccountScreen() {
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
-            
+
             {/* Error Message */}
             {errorMessage ? (
               <View style={styles.errorContainer}>
@@ -111,7 +125,7 @@ export default function CreateAccountScreen() {
                 <Text style={styles.label}>Nombres</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                  <TextInput 
+                  <TextInput
                     style={styles.textInput}
                     placeholder="Juan"
                     value={firstName}
@@ -123,7 +137,7 @@ export default function CreateAccountScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Apellidos</Text>
                 <View style={styles.inputWrapper}>
-                  <TextInput 
+                  <TextInput
                     style={styles.textInput}
                     placeholder="Pérez"
                     value={lastName}
@@ -139,7 +153,7 @@ export default function CreateAccountScreen() {
               <Text style={styles.label}>Correo Electrónico</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
                   placeholder="tu.correo@ejemplo.com"
                   keyboardType="email-address"
@@ -154,13 +168,13 @@ export default function CreateAccountScreen() {
             {/* Phone Number */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
-                Número de Teléfono <Text style={styles.optionalText}>(Opcional)</Text>
+                Número de Teléfono
               </Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="call-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+502 0000-0000"
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={setPhone}
@@ -174,7 +188,7 @@ export default function CreateAccountScreen() {
               <Text style={styles.label}>Contraseña</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
                   placeholder="Crea una contraseña segura"
                   secureTextEntry={!showPassword}
@@ -194,10 +208,12 @@ export default function CreateAccountScreen() {
               <Text style={styles.label}>Confirmar Contraseña</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
                   placeholder="Vuelve a escribir tu contraseña"
                   secureTextEntry={!showConfirmPassword}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
                   placeholderTextColor={colors.textLight}
                 />
                 <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
@@ -208,8 +224,8 @@ export default function CreateAccountScreen() {
 
             {/* Terms and Conditions */}
             <View style={styles.termsContainer}>
-              <TouchableOpacity 
-                style={[styles.checkbox, agreeTerms && styles.checkboxActive]} 
+              <TouchableOpacity
+                style={[styles.checkbox, agreeTerms && styles.checkboxActive]}
                 onPress={() => setAgreeTerms(!agreeTerms)}
                 activeOpacity={0.8}
               >
@@ -251,8 +267,8 @@ export default function CreateAccountScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity 
-              style={[styles.socialButton, { justifyContent: 'center', backgroundColor: '#ECFDF5', borderColor: '#10B981', marginHorizontal: 0 }]} 
+            <TouchableOpacity
+              style={[styles.socialButton, { justifyContent: 'center', backgroundColor: '#ECFDF5', borderColor: '#10B981', marginHorizontal: 0 }]}
               onPress={() => router.push('/worker-registration')}
             >
               <MaterialCommunityIcons name="shield-account-outline" size={22} color="#10B981" style={styles.socialIcon} />

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dim
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useIssuesFeed } from '../src/hooks/useIssues';
+import { useAuthStore } from '../src/store/authStore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,6 +57,7 @@ const MapGrid = () => {
 
 export default function MapScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const { data: feedData, isLoading } = useIssuesFeed();
   const [activeFilter, setActiveFilter] = useState('Todos');
 
@@ -98,20 +100,22 @@ export default function MapScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
         
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mapa de Problemas</Text>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="funnel-outline" size={22} color={colors.textTitle} />
-          </TouchableOpacity>
-        </View>
+        <SafeAreaView style={{ backgroundColor: colors.surface }}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Mapa de Problemas</Text>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="funnel-outline" size={22} color={colors.textTitle} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
 
         {/* Filters Scroll Menu */}
         <View style={styles.filtersWrapper}>
@@ -219,10 +223,24 @@ export default function MapScreen() {
             <Ionicons name="person-outline" size={24} color={colors.textLight} />
             <Text style={styles.tabLabel}>Perfil</Text>
           </TouchableOpacity>
+
+          {user?.role_id === 2 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
+              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Tareas</Text>
+            </TouchableOpacity>
+          )}
+
+          {user?.role_id === 1 && (
+            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
+              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
+              <Text style={styles.tabLabel}>Admin</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

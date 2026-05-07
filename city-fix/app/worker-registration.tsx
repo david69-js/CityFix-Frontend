@@ -30,6 +30,7 @@ export default function WorkerRegistrationScreen() {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -37,19 +38,32 @@ export default function WorkerRegistrationScreen() {
   
   const handleRegister = () => {
     setErrorMessage('');
+    
+    if (password !== confirmPassword) {
+      setErrorMessage('Las contraseñas no coinciden.');
+      return;
+    }
+    
+    if (password.length < 6) {
+      setErrorMessage('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
     registerMutation.mutate({
-      first_name: firstName,
-      last_name: lastName,
-      email,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.trim(),
       password,
-      invitation_code: invitationCode
+      invitation_code: invitationCode.trim()
     }, {
       onSuccess: () => {
         router.replace('/');
       },
       onError: (e: any) => {
         const data = e?.response?.data;
-        if (data?.message) {
+        if (data?.error) {
+          setErrorMessage(data.error);
+        } else if (data?.message) {
           setErrorMessage(data.message);
         } else if (data?.errors) {
           const firstError = Object.values(data.errors)[0] as string[];
@@ -137,12 +151,12 @@ export default function WorkerRegistrationScreen() {
                 />
                 {!codeVerified && invitationCode.length > 0 && (
                   <TouchableOpacity style={styles.verifyBtn} onPress={handleVerifyCode}>
-                    <Text style={styles.verifyBtnText}>Validar</Text>
+                    <Text style={styles.verifyBtnText}>Aplicar</Text>
                   </TouchableOpacity>
                 )}
               </View>
               {codeVerified ? (
-                <Text style={styles.successText}>✓ Código válido. Rol de trabajador asignado.</Text>
+                <Text style={styles.successText}>✓ Formato aceptado. Se verificará al finalizar el registro.</Text>
               ) : (
                 <Text style={styles.helpText}>Necesitas un código proporcionado por tu departamento.</Text>
               )}
@@ -221,6 +235,8 @@ export default function WorkerRegistrationScreen() {
                     style={styles.textInput}
                     placeholder="Vuelve a escribir tu contraseña"
                     secureTextEntry={!showConfirmPassword}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
                     placeholderTextColor={colors.textLight}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>

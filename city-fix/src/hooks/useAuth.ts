@@ -62,7 +62,12 @@ export const useLogin = () => {
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
         try {
           const userResp = await apiClient.get('/auth/me');
-          if (userResp.data) data.user = userResp.data;
+          // El backend devuelve { user: { ... } }
+          if (userResp.data?.user) {
+            data.user = userResp.data.user;
+          } else if (userResp.data) {
+            data.user = userResp.data;
+          }
         } catch(e) {
           console.warn("Failed fetching user immediately after login");
         } finally {
@@ -73,12 +78,19 @@ export const useLogin = () => {
       return data;
     },
     onSuccess: (data: any) => {
+      console.log('[useLogin] Login Success. Data Keys:', Object.keys(data));
       if (data.user) {
+        console.log('[useLogin] Setting User...');
         setUser(data.user);
       }
-      const activeToken = data.token || data.access_token;
+      const activeToken = data.token || data.access_token || (data.data && (data.data.token || data.data.access_token));
+      console.log('[useLogin] Active Token Found:', !!activeToken);
       if (activeToken) {
-        setToken(activeToken); // Set token LAST so the redirect happens AFTER user is set
+        console.log('[useLogin] Calling setToken...');
+        setToken(activeToken);
+      } else {
+        console.warn('[useLogin] CRITICAL: No token found in any expected field!');
+        console.log('[useLogin] Full data:', JSON.stringify(data));
       }
     },
   });
@@ -141,6 +153,61 @@ export const useUsers = () => {
     queryFn: async () => {
       const response = await apiClient.get('/users');
       return response.data;
+    },
+  });
+};
+
+export interface UpdateProfilePayload {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  password?: string;
+  avatar?: {
+    uri: string;
+    name: string;
+    type: string;
+  } | null;
+}
+
+export const useUpdateProfile = () => {
+  const setUser = useAuthStore((state) => state.setUser);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, payload }: { userId: number; payload: UpdateProfilePayload }) => {
+      const formData = new FormData();
+      
+      if (payload.first_name) formData.append('first_name', payload.first_name);
+      if (payload.last_name) formData.append('last_name', payload.last_name);
+      if (payload.phone) formData.append('phone', payload.phone);
+      if (payload.password) formData.append('password', payload.password);
+
+      if (payload.avatar) {
+        formData.append('avatar', {
+          uri: payload.avatar.uri,
+          type: payload.avatar.type,
+          name: payload.avatar.name,
+        } as any);
+      }
+
+      // Using POST with _method=PUT is the standard Laravel way to handle files in updates
+      const response = await apiClient.post(`/users/${userId}?_method=PUT`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    },
+    onSuccess: (data: any, variables) => {
+      // If we updated ourselves, refresh the local user state
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser && currentUser.id === variables.userId) {
+        // Handle different response formats
+        const updatedUser = data.user || data;
+        setUser(updatedUser);
+      }
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
