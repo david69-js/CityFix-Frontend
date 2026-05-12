@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAreaView, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
+import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
+import { fixImageUrl } from '../src/utils/image';
 
 const { width } = Dimensions.get('window');
 
@@ -25,32 +27,81 @@ export default function EditProfileScreen() {
   const [firstName, setFirstName] = useState(user?.first_name || '');
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const handlePickAvatar = () => {
+    Alert.alert(
+      'Foto de Perfil',
+      '¿Cómo deseas actualizar tu foto?',
+      [
+        { text: 'Tomar Foto', onPress: () => launchPicker(true) },
+        { text: 'Elegir de Galería', onPress: () => launchPicker(false) },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  const launchPicker = async (isCamera: boolean) => {
+    const permission = isCamera 
+      ? await ImagePicker.requestCameraPermissionsAsync() 
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Se necesitan permisos para realizar esta acción.');
+      return;
+    }
+
+    try {
+      const result = isCamera 
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+
+      if (!result.canceled && result.assets) {
+        setNewAvatarUri(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Hubo un problema al acceder a la cámara o galería.');
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Intenta enviar los datos al backend (si el endpoint existe)
-      const response = await apiClient.put('/auth/profile', {
-        first_name: firstName,
-        last_name: lastName,
-        phone: phone
-      });
-      // Si funciona, actualiza el estado
-      if (response.data && response.data.user) {
-         setUser(response.data.user);
-      } else {
-         // Fallback manual si el backend no retorna el usuario
-         if(user) setUser({ ...user, first_name: firstName, last_name: lastName, phone: phone });
+      const formData = new FormData();
+      
+      // Añadir datos de texto
+      formData.append('first_name', firstName);
+      formData.append('last_name', lastName);
+      formData.append('phone', phone || '');
+      
+      // Añadir la foto si existe una nueva
+      if (newAvatarUri) {
+        const filename = newAvatarUri.split('/').pop() || 'avatar.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        formData.append('avatar', {
+          uri: newAvatarUri,
+          name: filename,
+          type,
+        } as any);
       }
+
+      // Enviar todo en una sola petición multipart
+      const response = await apiClient.post('/user/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (response.data?.user) {
+        setUser(response.data.user);
+      }
+
       Alert.alert("Éxito", "Perfil actualizado correctamente");
       router.back();
-    } catch (error) {
-      console.warn("Falló la actualización desde el API, actualizando sólo localmente", error);
-      // Fallback update local state so UI works anyway
-      if(user) setUser({ ...user, first_name: firstName, last_name: lastName, phone: phone });
-      Alert.alert("Aviso", "Perfil actualizado localmente (API no lista aún)");
-      router.back();
+    } catch (error: any) {
+      console.error("Update error:", error?.response?.data || error.message);
+      Alert.alert("Error", "No se pudieron guardar los cambios. Verifica tu conexión.");
     } finally {
       setIsSaving(false);
     }
@@ -82,22 +133,34 @@ export default function EditProfileScreen() {
             <View style={styles.avatarSection}>
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarArea}>
-                  {/* Simulate image placeholder with an icon or blank bg */}
-                  <Ionicons name="person" size={60} color="#E5E7EB" style={styles.avatarIconPlaceholder} />
+                  {newAvatarUri ? (
+                    <Image source={{ uri: newAvatarUri }} style={styles.avatarImage} />
+                  ) : user?.avatar ? (
+                    <Image source={{ uri: fixImageUrl(user.avatar) }} style={styles.avatarImage} />
+                  ) : (
+                    <Ionicons name="person" size={60} color="#E5E7EB" />
+                  )}
                 </View>
 
-                {/* Remove button */}
-                <TouchableOpacity style={styles.removePhotoBtn}>
-                  <Ionicons name="close" size={16} color="#FFF" />
-                </TouchableOpacity>
+                {/* Remove button (Only if there's a photo) */}
+                {(newAvatarUri || user?.avatar) && (
+                  <TouchableOpacity 
+                    style={styles.removePhotoBtn} 
+                    onPress={() => {
+                      setNewAvatarUri(null);
+                    }}
+                  >
+                    <Ionicons name="close" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                )}
 
                 {/* Edit Photo button */}
-                <TouchableOpacity style={styles.editPhotoBtn}>
+                <TouchableOpacity style={styles.editPhotoBtn} onPress={handlePickAvatar}>
                   <Ionicons name="camera-outline" size={18} color="#FFF" />
                 </TouchableOpacity>
               </View>
               
-              <Text style={styles.avatarHintText}>Haz clic en el ícono de la cámara para cambiar la foto</Text>
+              <Text style={styles.avatarHintText}>Toca el ícono de la cámara para cambiar la foto</Text>
             </View>
 
             {/* Personal Information */}
@@ -297,9 +360,14 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#1C1C1E', // Very dark color like in the screenshot
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarIconPlaceholder: {
     opacity: 0.5,

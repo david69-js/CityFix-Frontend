@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useIssueDetails, useIssueHistory, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
+import { fixImageUrl } from '../src/utils/image';
 
 const { width } = Dimensions.get('window');
 
@@ -60,7 +61,7 @@ export default function IssueDetailsScreen() {
   const { user } = useAuthStore();
   const { id } = useLocalSearchParams();
   
-  const { data: issue, isLoading, error } = useIssueDetails(id as string, user?.id);
+  const { data: issue, isLoading, error, refetch: refetchDetails } = useIssueDetails(id as string, user?.id);
   const { data: historyData } = useIssueHistory(id as string);
   const addCommentMutation = useAddComment();
   const toggleUpvoteMutation = useToggleUpvote();
@@ -118,16 +119,21 @@ export default function IssueDetailsScreen() {
     }, 300);
   };
 
-  const handleCommentSubmit = () => {
+  const handleCommentSubmit = async () => {
     if (!newComment.trim() || !issue) return;
-    addCommentMutation.mutate(
-      { issueId: issue.id, comment: newComment.trim() },
-      {
-        onSuccess: () => {
-          setNewComment('');
-        }
-      }
-    );
+    try {
+      await addCommentMutation.mutateAsync({
+        issueId: issue.id,
+        comment: newComment.trim(),
+      });
+      setNewComment('');
+      // Forzar refresco inmediato de los detalles y comentarios
+      await refetchDetails();
+    } catch (error: any) {
+      const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+      console.error('Error al publicar comentario:', serverMsg);
+      console.error('Respuesta completa del servidor:', JSON.stringify(error?.response?.data));
+    }
   };
 
   if (isLoading) {
@@ -156,7 +162,8 @@ export default function IssueDetailsScreen() {
     );
   }
 
-  const mainImage = issue.images && issue.images.length > 0 ? issue.images[0].full_url : null;
+  const mainImage = fixImageUrl(issue.images && issue.images.length > 0 ? issue.images[0].full_url : null);
+  if (mainImage) console.log(`[DEBUG] IssueDetails Image URL (Fixed): ${mainImage}`);
 
   return (
     <View style={styles.safeArea}>
@@ -334,23 +341,23 @@ export default function IssueDetailsScreen() {
                 style={[
                   styles.voteBtn, 
                   toggleUpvoteMutation.isPending && styles.voteBtnDisabled,
-                  issue.has_voted && styles.voteBtnActive
+                  issue?.has_voted && styles.voteBtnActive
                 ]}
                 onPress={handleToggleUpvote}
                 disabled={toggleUpvoteMutation.isPending}
               >
                 {toggleUpvoteMutation.isPending ? (
-                  <ActivityIndicator color={issue.has_voted ? '#FFF' : colors.primary} size="small" />
+                  <ActivityIndicator color={issue?.has_voted ? '#FFF' : colors.primary} size="small" />
                 ) : (
                   <>
                     <Ionicons 
-                      name={issue.has_voted ? "thumbs-up" : "thumbs-up-outline"} 
+                      name={issue?.has_voted ? "thumbs-up" : "thumbs-up-outline"} 
                       size={18} 
-                      color={issue.has_voted ? '#FFF' : colors.primary} 
+                      color={issue?.has_voted ? '#FFF' : colors.primary} 
                       style={styles.btnIcon} 
                     />
-                    <Text style={[styles.voteBtnText, issue.has_voted && styles.voteBtnTextActive]}>
-                      {issue.has_voted ? '¡Votado!' : 'Voto'} ({issue.upvotes_count || 0})
+                    <Text style={[styles.voteBtnText, issue?.has_voted && styles.voteBtnTextActive]}>
+                      {issue?.has_voted ? '¡Votado!' : 'Voto'} ({issue?.upvotes_count || 0})
                     </Text>
                   </>
                 )}
@@ -369,7 +376,14 @@ export default function IssueDetailsScreen() {
                 {issue.comments.map(comment => (
                   <View key={comment.id} style={styles.commentItem}>
                     <View style={styles.commentHeader}>
-                      <Image source={{ uri: comment.user?.avatar || 'https://ui-avatars.com/api/?name=' + (comment.user?.first_name || 'User') }} style={styles.commentAvatar} />
+                      <Image 
+                        source={{ 
+                          uri: comment.user?.avatar 
+                            ? fixImageUrl(comment.user.avatar) 
+                            : `https://ui-avatars.com/api/?name=${comment.user?.first_name}+${comment.user?.last_name}&background=random&color=fff` 
+                        }} 
+                        style={styles.commentAvatar} 
+                      />
                       <View>
                         <Text style={styles.commentUser}>{comment.user?.first_name} {comment.user?.last_name}</Text>
                         <Text style={styles.commentTime}>{formatDate(comment.created_at)}</Text>
@@ -507,7 +521,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: Platform.OS === 'android' ? 25 : 14,
+    paddingBottom: 14,
     backgroundColor: colors.surface,
   },
   iconButton: {
@@ -813,6 +828,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
+    zIndex: 100,
   },
   tabItem: {
     alignItems: 'center',

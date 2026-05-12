@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Dimensions, Image, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useUsers } from '../src/hooks/useAuth';
 import { useIssuesFeed } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { useUnreadCount } from '../src/hooks/useNotifications';
+import { fixImageUrl } from '../src/utils/image';
 
 const { width } = Dimensions.get('window');
 
@@ -76,6 +77,7 @@ export default function CityReporterDashboard() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -147,7 +149,7 @@ export default function CityReporterDashboard() {
             <Ionicons name="add" size={20} color="#FFF" style={styles.btnIcon} />
             <Text style={styles.primaryButtonText}>Reportar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/map')}>
             <Ionicons name="location-outline" size={20} color={colors.textTitle} style={styles.btnIcon} />
             <Text style={styles.secondaryButtonText}>Ver Mapa</Text>
           </TouchableOpacity>
@@ -179,15 +181,21 @@ export default function CityReporterDashboard() {
               >
 
                 {/* Image Column */}
-                {!report.images || report.images.length === 0 ? (
-                  <View style={styles.imagePlaceholder}>
-                    <View style={styles.questionMarkBox}>
-                      <Text style={styles.questionMarkText}>?</Text>
+                {(() => {
+                  const rawUrl = report.images && report.images.length > 0 ? report.images[0].full_url : null;
+                  const imageUrl = fixImageUrl(rawUrl);
+                  if (imageUrl) console.log(`[DEBUG] Dashboard Image URL (Fixed): ${imageUrl}`);
+                  
+                  return !imageUrl ? (
+                    <View style={styles.imagePlaceholder}>
+                      <View style={styles.questionMarkBox}>
+                        <Text style={styles.questionMarkText}>?</Text>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <Image source={{ uri: report.images[0].full_url }} style={styles.reportImage} />
-                )}
+                  ) : (
+                    <Image source={{ uri: imageUrl }} style={styles.reportImage} />
+                  );
+                })()}
 
                 {/* Details Column */}
                 <View style={styles.reportDetails}>
@@ -223,8 +231,8 @@ export default function CityReporterDashboard() {
           )}
         </View>
 
-        {/* Spacer for bottom tab */}
-        <View style={{ height: 100 }} />
+        {/* Bottom padding for scroll content */}
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* Bottom Tabs */}
@@ -287,7 +295,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerContent: {
-    paddingTop: 30,
+    paddingTop: Platform.OS === 'android' ? 50 : 30, // Extra padding for Android status bar
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
@@ -532,7 +540,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   bottomTabBar: {
-    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -545,9 +552,6 @@ const styles = StyleSheet.create({
     paddingBottom: 25, // For iPhone home indicator area (approx)
     paddingTop: 10,
     justifyContent: 'space-around',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
   },
   tabItem: {
     alignItems: 'center',

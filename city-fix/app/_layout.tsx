@@ -16,7 +16,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // Only initialize once on mount
 
   useEffect(() => {
     if (isLoading) return;

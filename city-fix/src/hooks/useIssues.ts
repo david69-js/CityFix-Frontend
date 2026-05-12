@@ -79,7 +79,7 @@ export const useMyIssues = (userId: number | undefined) => {
 
 export const useIssueDetails = (id: number | string | null, userId?: number) => {
   return useQuery({
-    queryKey: ['issues', 'details', id ? String(id) : null],
+    queryKey: ['issues', 'details', id ? String(id) : null, userId],
     queryFn: async () => {
       if (!id) return null;
       const response = await apiClient.get<Issue>(`/issues/${id}`);
@@ -134,9 +134,9 @@ export const useAddComment = () => {
       return response.data;
     },
     onSuccess: (_, { issueId }) => {
-      const idStr = String(issueId);
-      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
-      queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
+      // Invalida todos los detalles de issues y el feed para forzar refresco
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
     },
   });

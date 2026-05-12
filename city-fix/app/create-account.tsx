@@ -128,6 +128,7 @@ export default function CreateAccountScreen() {
                   <TextInput
                     style={styles.textInput}
                     placeholder="Juan"
+                    autoCapitalize="words"
                     value={firstName}
                     onChangeText={setFirstName}
                     placeholderTextColor={colors.textLight}
@@ -140,6 +141,7 @@ export default function CreateAccountScreen() {
                   <TextInput
                     style={styles.textInput}
                     placeholder="Pérez"
+                    autoCapitalize="words"
                     value={lastName}
                     onChangeText={setLastName}
                     placeholderTextColor={colors.textLight}
@@ -192,6 +194,8 @@ export default function CreateAccountScreen() {
                   style={styles.textInput}
                   placeholder="Crea una contraseña segura"
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   value={password}
                   onChangeText={setPassword}
                   placeholderTextColor={colors.textLight}
@@ -212,6 +216,8 @@ export default function CreateAccountScreen() {
                   style={styles.textInput}
                   placeholder="Vuelve a escribir tu contraseña"
                   secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholderTextColor={colors.textLight}

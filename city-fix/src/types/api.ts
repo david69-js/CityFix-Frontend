@@ -60,6 +60,7 @@ export interface Issue {
   // Counts
   upvotes_count?: number;
   comments_count?: number;
+  has_voted?: boolean;
   
   // Comments array
   comments?: IssueComment[];

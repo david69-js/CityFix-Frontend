@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -24,13 +24,24 @@ const colors = {
 
 // Helper to map FontAwesome strings from backend to FontAwesome5 icon names
 const getCategoryIcon = (iconName: string) => {
-  // Convert "fa-solid fa-road" to "road"
-  if (iconName.startsWith('fa-')) {
-    const parts = iconName.split(' ');
-    const name = parts[parts.length - 1]; // "fa-road"
-    return name.replace('fa-', ''); // "road"
-  }
-  return 'question';
+  if (!iconName) return 'question-circle';
+  
+  // Limpiar formatos comunes de FontAwesome (ej: "fa-solid fa-road", "fas fa-trash", "fa-road")
+  let name = iconName.toLowerCase();
+  
+  // Eliminar prefijos comunes
+  name = name.replace('fa-solid ', '')
+             .replace('fa-regular ', '')
+             .replace('fas ', '')
+             .replace('far ', '')
+             .replace('fa-', '')
+             .replace('fa ', '');
+             
+  // Manejar nombres compuestos si quedan (ej: "trash-alt")
+  const parts = name.split(' ');
+  const finalName = parts[parts.length - 1];
+
+  return finalName || 'question-circle';
 };
 
 export default function ReportIssueScreen() {
@@ -39,7 +50,14 @@ export default function ReportIssueScreen() {
   
   // -- API Hooks --
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
-  const categories = categoriesData || [];
+  
+  // Filtrar categorías duplicadas por nombre para limpiar la interfaz
+  const categories = React.useMemo(() => {
+    if (!categoriesData) return [];
+    return categoriesData.filter((category, index, self) =>
+      index === self.findIndex((t) => t.name === category.name)
+    );
+  }, [categoriesData]);
 
   // -- Form State --
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -55,10 +73,42 @@ export default function ReportIssueScreen() {
 
   const createIssueMutation = useCreateIssue();
 
-  const handlePickImage = async () => {
+  const handleLaunchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Se necesitan permisos de cámara para tomar fotos de los problemas.');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        // Check size if available (in bytes)
+        if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+          Alert.alert('Imagen muy grande', 'La imagen seleccionada excede los 5MB. Por favor elige una más pequeña o toma una nueva.');
+          return;
+        }
+        setImageUri(asset.uri);
+      }
+    } catch (error: any) {
+      if (error.message.includes('Camera not available')) {
+        Alert.alert('Cámara no disponible', 'Parece que estás en un simulador o tu dispositivo no tiene cámara activa.');
+      } else {
+        Alert.alert('Error', 'Hubo un problema al intentar abrir la cámara.');
+      }
+      console.warn(error);
+    }
+  };
+
+  const handleLaunchGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      alert('Se necesitan permisos para acceder a la galería para poder enviar evidencia visual.');
+      alert('Se necesitan permisos para acceder a la galería.');
       return;
     }
 
@@ -69,8 +119,25 @@ export default function ReportIssueScreen() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Imagen muy grande', 'La imagen seleccionada excede los 5MB.');
+        return;
+      }
+      setImageUri(asset.uri);
     }
+  };
+
+  const handlePickImage = () => {
+    Alert.alert(
+      'Adjuntar evidencia',
+      '¿Deseas tomar una foto nueva o elegir una de tu galería?',
+      [
+        { text: 'Tomar Foto', onPress: handleLaunchCamera },
+        { text: 'Elegir de Galería', onPress: handleLaunchGallery },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
   };
 
   const handleFetchLocation = async () => {
@@ -141,10 +208,16 @@ export default function ReportIssueScreen() {
       },
       onError: (e: any) => {
         const data = e?.response?.data;
-        if (data?.message) {
+        const status = e?.response?.status;
+
+        if (status === 413) {
+          setErrorMessage('La imagen es demasiado pesada para el servidor. Intenta con una foto más pequeña.');
+        } else if (data?.errors?.image) {
+          setErrorMessage('El servidor rechaza la imagen: ' + data.errors.image[0]);
+        } else if (data?.message) {
           setErrorMessage(data.message);
         } else {
-          setErrorMessage('Error al enviar el reporte. Por favor inténtalo de nuevo.');
+          setErrorMessage('Error al enviar el reporte (' + (status || 'Red') + '). Por favor inténtalo de nuevo.');
         }
       }
     });
@@ -286,8 +359,8 @@ export default function ReportIssueScreen() {
                   <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
                 ) : (
                   <>
-                    <Ionicons name="image-outline" size={32} color={colors.textLight} />
-                    <Text style={styles.photoUploadText}>Tocar para cargar desde la galería</Text>
+                    <Ionicons name="camera-outline" size={32} color={colors.textLight} />
+                    <Text style={styles.photoUploadText}>Tocar para tomar foto o elegir de galería</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -358,7 +431,17 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface },
   container: { flex: 1, backgroundColor: colors.background },
   keyboardView: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    paddingTop: Platform.OS === 'android' ? 5 : 16, 
+    paddingBottom: 16, 
+    backgroundColor: colors.surface, 
+    borderBottomWidth: 1, 
+    borderBottomColor: colors.border 
+  },
   backButton: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textTitle },
   scrollContent: { padding: 20 },
@@ -386,7 +469,7 @@ const styles = StyleSheet.create({
   submitButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 20 },
   submitButtonDisabled: { opacity: 0.7 },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 },
-  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%' },
+  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%', zIndex: 100 },
   tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
   tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },

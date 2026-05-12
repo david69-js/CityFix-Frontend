@@ -12,6 +12,7 @@ const API_URL = Platform.OS === 'android' && ENV_API_URL.includes('localhost')
 
 const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

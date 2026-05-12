@@ -56,22 +56,26 @@ export const useLogin = () => {
       const data = response.data;
       
       const activeToken = data.token || data.access_token;
-      // If the backend didn't supply the full user object but gave us a token
-      if (!data.user && activeToken) {
+      
+      // If the backend ALREADY supplied the user, we return immediately
+      if (data.user) {
+        return data;
+      }
+
+      // Fallback: If for some reason the user is missing but we have a token, fetch it
+      if (activeToken) {
         // Temporarily assign token for the immediate next request
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
         try {
           const userResp = await apiClient.get('/auth/me');
-          // El backend devuelve { user: { ... } }
           if (userResp.data?.user) {
             data.user = userResp.data.user;
           } else if (userResp.data) {
             data.user = userResp.data;
           }
         } catch(e) {
-          console.warn("Failed fetching user immediately after login");
+          console.warn("Failed fetching user profile after login fallback");
         } finally {
-          // Cleanup default header, interceptor takes over
           delete apiClient.defaults.headers.common['Authorization'];
         }
       }

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Image, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
+import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
 import { useMyIssues } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
+import { fixImageUrl } from '../src/utils/image';
 
 const { width } = Dimensions.get('window');
 
@@ -42,9 +44,11 @@ const colors = {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser, initializeAuth } = useAuthStore();
 
   const { data: myIssues, isLoading: isLoadingIssues } = useMyIssues(user?.id);
+  const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const reportedCount = myIssues?.filter(i => i.status_id === 1 || i.status?.name?.toLowerCase().includes('reportado') || i.status?.name?.toLowerCase().includes('pendiente')).length || 0;
   const processCount = myIssues?.filter(i => i.status_id === 2 || i.status?.name?.toLowerCase().includes('proceso')).length || 0;
@@ -60,6 +64,50 @@ export default function ProfileScreen() {
     if (n.includes('luz') || n.includes('iluminación')) return '#EAB308';
     if (n.includes('agua')) return '#3B82F6';
     return '#4B5563';
+  };
+
+  const handlePickAvatar = () => {
+    Alert.alert(
+      'Foto de Perfil',
+      '¿Cómo deseas actualizar tu foto?',
+      [
+        { text: 'Tomar Foto', onPress: () => launchPicker(true) },
+        { text: 'Elegir de Galería', onPress: () => launchPicker(false) },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  const launchPicker = async (isCamera: boolean) => {
+    const permission = isCamera 
+      ? await ImagePicker.requestCameraPermissionsAsync() 
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permission.status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Se necesitan permisos para realizar esta acción.');
+      return;
+    }
+
+    try {
+      const result = isCamera 
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+
+      if (!result.canceled && result.assets) {
+        setNewAvatarUri(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      if (error.message.includes('Camera not available')) {
+        Alert.alert('Cámara no disponible', 'Parece que estás en un simulador o tu dispositivo no tiene cámara activa.');
+      } else {
+        Alert.alert('Error', 'Hubo un problema al intentar abrir la cámara o galería.');
+      }
+      console.warn(error);
+    }
+  };
+
+  const handleUploadAvatar = async () => {
+    // Esta función ya no se usa aquí, se movió a edit-profile.tsx
   };
 
   return (
@@ -81,11 +129,28 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.profileInfo}>
-              <View style={styles.avatarBorder}>
+              <TouchableOpacity 
+                onPress={() => router.push('/edit-profile')} 
+                style={styles.avatarBorder} 
+                activeOpacity={0.9}
+              >
                 <View style={styles.avatar}>
-                  <Ionicons name="person-outline" size={40} color={colors.primary} />
+                  {user?.avatar ? (
+                    <Image 
+                      source={{ uri: `${fixImageUrl(user.avatar)}?t=${new Date().getTime()}` }} 
+                      style={styles.avatarImage} 
+                      onLoad={() => console.log('[DEBUG] Avatar loaded successfully')}
+                      onError={(e) => console.error('[DEBUG] Avatar load error:', e.nativeEvent.error, 'URL:', fixImageUrl(user.avatar))}
+                    />
+                  ) : (
+                    <Ionicons name="person-outline" size={60} color={colors.primary} />
+                  )}
                 </View>
-              </View>
+                <View style={styles.editIconBadge}>
+                  <Ionicons name="settings" size={16} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+              
               <Text style={styles.userName}>{user ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Usuario'}</Text>
               <Text style={styles.userEmail}>{user?.email || ''}</Text>
             </View>
@@ -139,7 +204,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.achieveTextCol}>
                 <Text style={styles.achieveTitle}>Héroe de la Comunidad</Text>
-                <Text style={styles.achieveDesc}>Reportó 10+ problemas</Text>
+                <Text style={styles.achieveDesc}>Primer reporte realizado</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: colors.badgeYellowBg }]}>
                 <Text style={[styles.badgeText, { color: colors.badgeYellowText }]}>Desbloqueado</Text>
@@ -155,7 +220,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.achieveTextCol}>
                 <Text style={styles.achieveTitle}>Influencer</Text>
-                <Text style={styles.achieveDesc}>Recibió 50+ votos</Text>
+                <Text style={styles.achieveDesc}>Primera interacción</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: colors.badgeBlueBg }]}>
                 <Text style={[styles.badgeText, { color: colors.badgeBlueText }]}>Desbloqueado</Text>
@@ -211,7 +276,7 @@ export default function ProfileScreen() {
 
           {/* My Reports */}
           <Text style={styles.sectionTitle}>Mis Reportes</Text>
-          
+
           {isLoadingIssues ? (
             <View style={[styles.card, { alignItems: 'center', padding: 20 }]}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -219,20 +284,23 @@ export default function ProfileScreen() {
             </View>
           ) : myIssues && myIssues.length > 0 ? (
             myIssues.map(issue => (
-              <TouchableOpacity 
-                key={issue.id} 
+              <TouchableOpacity
+                key={issue.id}
                 style={styles.issueCard}
                 onPress={() => router.push(`/issue-details?id=${issue.id}`)}
                 activeOpacity={0.7}
               >
                 {issue.images && issue.images.length > 0 ? (
-                  <Image source={{ uri: issue.images[0].full_url }} style={styles.issueImage} />
+                  <Image 
+                    source={{ uri: fixImageUrl(issue.images[0].full_url) }} 
+                    style={styles.issueImage} 
+                  />
                 ) : (
-                  <View style={[styles.issueImage, { backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' }]}>
+                  <View style={styles.issueImagePlaceholder}>
                     <Ionicons name="image-outline" size={24} color={colors.textLight} />
                   </View>
                 )}
-                
+
                 <View style={styles.issueInfo}>
                   <View style={styles.issueHeader}>
                     <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue.category?.name || '') }]}>
@@ -240,9 +308,9 @@ export default function ProfileScreen() {
                     </View>
                     <Text style={styles.issueDate}>{formatDate(issue.created_at)}</Text>
                   </View>
-                  
+
                   <Text style={styles.issueCardTitle} numberOfLines={1}>{issue.title}</Text>
-                  
+
                   <View style={styles.issueFooter}>
                     <Text style={[styles.issueStatus, { color: issue.status?.color || colors.primary }]}>
                       • {issue.status?.name || 'Pendiente'}
@@ -270,8 +338,8 @@ export default function ProfileScreen() {
             </View>
           )}
           {/* Logout Button */}
-          <TouchableOpacity 
-            style={styles.logoutButton} 
+          <TouchableOpacity
+            style={styles.logoutButton}
             onPress={async () => {
               await logout();
               router.replace('/welcome');
@@ -345,7 +413,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: Platform.OS === 'android' ? 40 : 10,
   },
   iconButton: {
     padding: 8,
@@ -355,23 +423,55 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   avatarBorder: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 4,
+    borderRadius: 75,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
     marginBottom: 12,
   },
   avatar: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 140, // Larger, prominent avatar
+    height: 140,
+    borderRadius: 70,
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  editIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  saveAvatarBtn: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 8,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  saveAvatarText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   userName: {
     fontSize: 20,
@@ -586,13 +686,27 @@ const styles = StyleSheet.create({
   reportFirstLink: { color: colors.primary, fontWeight: 'bold', fontSize: 14 },
   logoutButton: { flexDirection: 'row', backgroundColor: '#FEF2F2', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10, borderWidth: 1, borderColor: '#FCA5A5' },
   logoutText: { color: colors.danger, fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
-  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%' },
+  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%', zIndex: 100 },
   tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
   tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
   fabButton: { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' },
   issueCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: colors.border },
-  issueImage: { width: 80, height: 80, borderRadius: 8, marginRight: 12 },
+  issueImage: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 8, 
+    marginRight: 12 
+  },
+  issueImagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   issueInfo: { flex: 1, justifyContent: 'space-between' },
   issueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   categoryBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },

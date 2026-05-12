@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator, Image, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator, Image, RefreshControl, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
@@ -140,7 +140,11 @@ export default function AssignmentsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { padding: 16, alignItems: 'center' },
+  header: { 
+    paddingTop: Platform.OS === 'android' ? 40 : 16, 
+    paddingBottom: 16, 
+    alignItems: 'center' 
+  },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   content: { padding: 16, paddingBottom: 100 },
   card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: colors.border },

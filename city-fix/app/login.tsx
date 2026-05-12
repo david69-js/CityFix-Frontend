@@ -42,21 +42,42 @@ export default function LoginScreen() {
         router.replace('/');
       },
       onError: (e: any) => {
-        // Handle Laravel validation/authentication error messages
-        const data = e?.response?.data;
-        if (data?.message) {
-          setErrorMessage(data.message);
-        } else if (data?.errors) {
-          // If laravel returned a validation errors object, pick the first one
+        // ── 1. No response at all → connection / network error ──
+        if (!e?.response) {
+          // Axios sets e.code for timeouts and network failures
+          if (e?.code === 'ECONNABORTED') {
+            setErrorMessage('⏱ El servidor tardó demasiado en responder. Verifica que el backend esté corriendo.');
+          } else {
+            setErrorMessage('📡 No se pudo conectar al servidor. Verifica tu conexión a internet y que el backend esté encendido.');
+          }
+          console.error('[Login] Network error:', e?.message);
+          return;
+        }
+
+        // ── 2. We got an HTTP response → inspect status & body ──
+        const status = e.response.status;
+        const data = e.response.data;
+
+        if (status === 401) {
+          // Laravel returns { error: 'Unauthorized' } for bad credentials
+          setErrorMessage('🔒 Correo o contraseña incorrectos.');
+        } else if (status === 422 && data?.errors) {
+          // Laravel validation errors
           const firstError = Object.values(data.errors)[0] as string[];
           if (firstError && firstError.length > 0) {
             setErrorMessage(firstError[0]);
           } else {
             setErrorMessage('Error de validación.');
           }
+        } else if (status === 422 && data?.message) {
+          setErrorMessage(data.message);
+        } else if (status >= 500) {
+          setErrorMessage('⚠️ Error interno del servidor. Intenta de nuevo más tarde.');
         } else {
-          setErrorMessage('Credenciales inválidas o error de conexión.');
+          // Catch-all for other HTTP errors
+          setErrorMessage(data?.message || data?.error || `Error inesperado (${status}).`);
         }
+        console.error(`[Login] HTTP ${status}:`, data);
       }
     });
   };
@@ -130,6 +151,8 @@ export default function LoginScreen() {
                   style={styles.textInput}
                   placeholder="Ingresa tu contraseña"
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   value={password}
                   onChangeText={setPassword}
                   placeholderTextColor={colors.textLight}
