@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails, useIssueHistory, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { fixImageUrl } from '../src/utils/image';
@@ -63,6 +63,7 @@ export default function IssueDetailsScreen() {
   
   const { data: issue, isLoading, error, refetch: refetchDetails } = useIssueDetails(id as string, user?.id);
   const { data: historyData } = useIssueHistory(id as string);
+  const { data: commentsData } = useIssueComments(id as string);
   const addCommentMutation = useAddComment();
   const toggleUpvoteMutation = useToggleUpvote();
   const updateStatusMutation = useUpdateIssueStatus();
@@ -127,8 +128,8 @@ export default function IssueDetailsScreen() {
         comment: newComment.trim(),
       });
       setNewComment('');
-      // Forzar refresco inmediato de los detalles y comentarios
-      await refetchDetails();
+      // Invalidation in the hook handles the rest, but we can refetch details for the count
+      refetchDetails();
     } catch (error: any) {
       const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
       console.error('Error al publicar comentario:', serverMsg);
@@ -370,10 +371,10 @@ export default function IssueDetailsScreen() {
             </View>
 
             {/* Comentarios */}
-            <Text style={styles.sectionTitle}>Comentarios ({issue.comments_count || 0})</Text>
-            {issue.comments && issue.comments.length > 0 ? (
+            <Text style={styles.sectionTitle}>Comentarios ({issue.comments_count || commentsData?.length || 0})</Text>
+            {commentsData && commentsData.length > 0 ? (
               <View style={styles.commentsContainer}>
-                {issue.comments.map(comment => (
+                {commentsData.map(comment => (
                   <View key={comment.id} style={styles.commentItem}>
                     <View style={styles.commentHeader}>
                       <Image 

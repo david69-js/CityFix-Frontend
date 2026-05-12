@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
-import { Issue, PaginatedResponse } from '../types/api';
+import { Issue, PaginatedResponse, IssueComment } from '../types/api';
 
 export interface CreateIssuePayload {
   category_id: number;
@@ -99,12 +99,19 @@ export const useIssueDetails = (id: number | string | null, userId?: number) => 
         issue.has_voted = false;
       }
 
-      // Workaround: Use the length of the comments array if comments_count is missing
-      if (issue.comments_count === undefined || issue.comments_count === null) {
-        issue.comments_count = issue.comments?.length || 0;
-      }
-
       return issue;
+    },
+    enabled: !!id,
+  });
+};
+
+export const useIssueComments = (id: number | string | null) => {
+  return useQuery({
+    queryKey: ['issues', 'comments', id ? String(id) : null],
+    queryFn: async () => {
+      if (!id) return [];
+      const response = await apiClient.get<IssueComment[]>(`/issues/${id}/comments`);
+      return response.data;
     },
     enabled: !!id,
   });
@@ -134,10 +141,12 @@ export const useAddComment = () => {
       return response.data;
     },
     onSuccess: (_, { issueId }) => {
-      // Invalida todos los detalles de issues y el feed para forzar refresco
+      // Invalida todos los detalles de issues, comentarios y el feed para forzar refresco
       queryClient.invalidateQueries({ queryKey: ['issues', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'comments'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 };
@@ -184,6 +193,7 @@ export const useUpdateIssueStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
       queryClient.invalidateQueries({ queryKey: ['assignments', 'my-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 };
@@ -208,6 +218,7 @@ export const useAssignWorker = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', variables.issueId] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     }
   });
 };

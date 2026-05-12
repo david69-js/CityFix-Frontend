@@ -53,6 +53,30 @@ export default function NotificationsScreen() {
         headerStyle: { backgroundColor: '#FFF' },
         headerTintColor: colors.textTitle,
         headerShadowVisible: false,
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={{ 
+              marginLeft: -10, 
+              width: 50, 
+              height: 50, 
+              justifyContent: 'center', 
+              alignItems: 'center',
+            }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
+            <Ionicons 
+              name="chevron-back" 
+              size={28} 
+              color={colors.textTitle} 
+              style={{ 
+                marginTop: -5, // Stronger lift
+                marginRight: 2,
+                alignSelf: 'center'
+              }} 
+            />
+          </TouchableOpacity>
+        ),
       }} />
 
       <ScrollView 

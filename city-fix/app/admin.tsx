@@ -7,6 +7,7 @@ import { useAuthStore } from '../src/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import { useUpdateProfile } from '../src/hooks/useAuth';
 import apiClient from '../src/api/axios';
+import { useSendCampaign } from '../src/hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 
@@ -513,6 +514,9 @@ export default function AdminScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Send Campaign */}
+          <CampaignSection />
+
 
 
         </View>
@@ -533,7 +537,7 @@ export default function AdminScreen() {
 
         <View style={styles.tabItemCentral}>
           <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" />
+            <Ionicons name="add" size={32} color="#FFF" style={{ marginTop: -1 }} />
           </TouchableOpacity>
           <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
         </View>
@@ -551,6 +555,61 @@ export default function AdminScreen() {
         )}
       </View>
 
+    </View>
+  );
+}
+
+function CampaignSection() {
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const sendCampaignMutation = useSendCampaign();
+
+  const handleSend = async () => {
+    if (!title || !message) {
+      Alert.alert('Error', 'Título y mensaje son obligatorios.');
+      return;
+    }
+
+    try {
+      await sendCampaignMutation.mutateAsync({ title, message });
+      Alert.alert('Éxito', 'Campaña enviada a todos los usuarios.');
+      setTitle('');
+      setMessage('');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Error al enviar campaña.');
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>Campaña de Notificación Masiva</Text>
+      <Text style={styles.label}>Esta notificación se enviará a TODOS los usuarios.</Text>
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Título del aviso"
+        value={title}
+        onChangeText={setTitle}
+      />
+      
+      <TextInput
+        style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+        placeholder="Mensaje de la campaña..."
+        value={message}
+        onChangeText={setMessage}
+        multiline
+      />
+
+      <TouchableOpacity 
+        style={[styles.adminButton, { backgroundColor: '#8B5CF6' }]} 
+        onPress={handleSend} 
+        disabled={sendCampaignMutation.isPending}
+      >
+        <Ionicons name="megaphone-outline" size={20} color="#FFF" />
+        <Text style={styles.adminButtonText}>
+          {sendCampaignMutation.isPending ? 'Enviando...' : 'Enviar Campaña Push'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }

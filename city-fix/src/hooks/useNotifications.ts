@@ -10,6 +10,7 @@ export interface Notification {
   related_id?: number;
   is_read: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export const useNotifications = () => {
@@ -38,4 +39,27 @@ export const useMarkAsRead = () => {
 export const useUnreadCount = () => {
   const { data: notifications } = useNotifications();
   return notifications?.filter(n => !n.is_read).length || 0;
+};
+
+export const useRegisterFCMToken = () => {
+  return useMutation({
+    mutationFn: async (fcm_token: string) => {
+      const response = await apiClient.post('/users/fcm-token', { fcm_token });
+      return response.data;
+    },
+  });
+};
+
+export interface CampaignPayload {
+  title: string;
+  message: string;
+}
+
+export const useSendCampaign = () => {
+  return useMutation({
+    mutationFn: async (payload: CampaignPayload) => {
+      const response = await apiClient.post('/admin/notifications/campaign', payload);
+      return response.data;
+    },
+  });
 };

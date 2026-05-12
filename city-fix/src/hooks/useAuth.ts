@@ -33,6 +33,8 @@ export interface ResetPasswordPayload {
 interface AuthResponse {
   token?: string;
   access_token?: string;
+  message?: string;
+  is_new_user?: boolean;
   user: {
     id: number;
     first_name: string;
@@ -40,6 +42,10 @@ interface AuthResponse {
     email: string;
     phone?: string;
     avatar?: string;
+    role?: {
+      id: number;
+      name: string;
+    };
     role_id?: number;
   };
 }
@@ -95,6 +101,29 @@ export const useLogin = () => {
       } else {
         console.warn('[useLogin] CRITICAL: No token found in any expected field!');
         console.log('[useLogin] Full data:', JSON.stringify(data));
+      }
+    },
+  });
+};
+
+export const useGoogleLogin = () => {
+  const setToken = useAuthStore((state) => state.setToken);
+  const setUser = useAuthStore((state) => state.setUser);
+
+  return useMutation({
+    mutationFn: async (idToken: string) => {
+      const response = await apiClient.post<AuthResponse>('/auth/google', {
+        id_token: idToken,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.user) {
+        setUser(data.user);
+      }
+      const activeToken = data.access_token || data.token;
+      if (activeToken) {
+        setToken(activeToken);
       }
     },
   });

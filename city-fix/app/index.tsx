@@ -221,6 +221,10 @@ export default function CityReporterDashboard() {
                     <View style={styles.metaInfo}>
                       <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
                       <Text style={styles.metaText}>{report.upvotes_count || 0}</Text>
+                      
+                      <Ionicons name="chatbubble-outline" size={14} color={colors.textLight} style={{ marginLeft: 12 }} />
+                      <Text style={styles.metaText}>{report.comments_count || 0}</Text>
+                      
                       <Text style={[styles.metaText, { marginLeft: 12 }]}>{formatDate(report.created_at)}</Text>
                     </View>
                   </View>
@@ -249,7 +253,7 @@ export default function CityReporterDashboard() {
 
         <View style={styles.tabItemCentral}>
           <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" />
+            <Ionicons name="add" size={32} color="#FFF" style={{ marginTop: -1 }} />
           </TouchableOpacity>
           <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
         </View>
