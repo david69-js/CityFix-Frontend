@@ -2,43 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { fixImageUrl } from '../src/utils/image';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 
-const colors = {
-  primary: '#2065ff', // Bright blue
-  background: '#F9FAFB', 
-  surface: '#FFFFFF', 
-  textTitle: '#111827', 
-  textSub: '#4B5563', 
-  textLight: '#9CA3AF', 
-  border: '#E5E7EB',
-  
-  // Tag colors (Fallbacks)
-  tagDefaultBg: '#4B5563',
-  tagGarbageBg: '#F59E0B',
-  tagRoadsBg: '#4B5563',
-  tagLightingBg: '#EAB308',
-  tagWaterBg: '#3B82F6',
-
-  // Status colors
-  statusProgressBg: '#EEF4FF',
-  statusProgressFg: '#3B82F6',
-
-  // Specific to Issue Details
-  buttonBlueBg: '#E0E7FF',
-  buttonBlueText: '#4338CA', 
-  timelineLine: '#E5E7EB',
-  orangeDot: '#F97316',
-  blueDot: '#3B82F6',
-};
-
 // Helper for Category Colors
-const getCategoryColor = (name: string) => {
+const getCategoryColor = (name: string, colors: any) => {
   const n = name.toLowerCase();
   if (n.includes('basura')) return colors.tagGarbageBg;
   if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
@@ -58,8 +31,10 @@ const getStatusIcon = (name: string) => {
 
 export default function IssueDetailsScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
   const { id } = useLocalSearchParams();
+  const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   
   const { data: issue, isLoading, error, refetch: refetchDetails } = useIssueDetails(id as string, user?.id);
   const { data: historyData } = useIssueHistory(id as string);
@@ -69,6 +44,7 @@ export default function IssueDetailsScreen() {
   const updateStatusMutation = useUpdateIssueStatus();
   const assignWorkerMutation = useAssignWorker();
   const { data: workers } = useWorkers();
+  const { data: feedData } = useIssuesFeed(100);
   
   const [newComment, setNewComment] = React.useState('');
   const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
@@ -198,7 +174,7 @@ export default function IssueDetailsScreen() {
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.heroImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
               <Ionicons name="image-outline" size={48} color={colors.textLight} />
               <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
             </View>
@@ -221,21 +197,21 @@ export default function IssueDetailsScreen() {
                 <Text style={styles.adminActionLabel}>Actualizar Estado (Gestión):</Text>
                 <View style={styles.statusButtonsRow}>
                   <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' }]}
+                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#F59E0B' }]}
                     onPress={() => handleUpdateStatus(1)}
                   >
                     <Ionicons name="time-outline" size={14} color="#F59E0B" />
                     <Text style={[styles.statusQuickBtnText, { color: '#F59E0B' }]}>Pendiente</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: '#EEF4FF', borderColor: '#3B82F6' }]}
+                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#3B82F6' }]}
                     onPress={() => handleUpdateStatus(2)}
                   >
                     <Ionicons name="construct-outline" size={14} color="#3B82F6" />
                     <Text style={[styles.statusQuickBtnText, { color: '#3B82F6' }]}>En Progreso</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: '#F0FDF4', borderColor: '#10B981' }]}
+                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#10B981' }]}
                     onPress={() => handleUpdateStatus(3)}
                   >
                     <Ionicons name="checkmark-circle-outline" size={14} color="#10B981" />
@@ -247,7 +223,7 @@ export default function IssueDetailsScreen() {
 
             {/* Admin Action: Assign Worker */}
             {user?.role_id === 1 && (
-              <View style={[styles.adminActionContainer, { backgroundColor: '#F0F9FF' }]}>
+              <View style={[styles.adminActionContainer, { borderColor: colors.primary, borderWidth: 1 }]}>
                 <Text style={styles.adminActionLabel}>Asignar a Trabajador:</Text>
                 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
@@ -307,7 +283,7 @@ export default function IssueDetailsScreen() {
             {/* Title & Tag */}
             <View style={styles.titleRow}>
               <Text style={styles.issueTitle}>{issue.title}</Text>
-              <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(issue.category?.name || '') }]}>
+              <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(issue.category?.name || '', colors) }]}>
                 <Text style={styles.categoryTagText}>{issue.category?.name || 'General'}</Text>
               </View>
             </View>
@@ -409,6 +385,7 @@ export default function IssueDetailsScreen() {
                 value={newComment}
                 onChangeText={setNewComment}
                 multiline
+                placeholderTextColor={colors.textLight}
               />
               <TouchableOpacity 
                 style={[styles.submitCommentBtn, (!newComment.trim() || addCommentMutation.isPending) && styles.submitCommentBtnDisabled]}
@@ -454,11 +431,77 @@ export default function IssueDetailsScreen() {
               ))}
             </View>
 
-            {/* Similar Issues (Placeholder) */}
+            {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>No hay problemas similares reportados en esta área</Text>
-            </View>
+            {(() => {
+              const allIssues = feedData?.data || [];
+              
+              if (!issue.latitude || !issue.longitude) return (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyCardText}>Ubicación no disponible para este reporte</Text>
+                </View>
+              );
+
+              // Helper function to calculate distance in km (Haversine formula)
+              const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+                const R = 6371; // Earth radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = 
+                  Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+              };
+
+              const nearbyIssues = allIssues.filter(item => {
+                // Skip current issue
+                if (item.id === issue.id) return false;
+                // Skip issues without coords
+                if (!item.latitude || !item.longitude) return false;
+                
+                const dist = getDistance(
+                  Number(issue.latitude), Number(issue.longitude),
+                  Number(item.latitude), Number(item.longitude)
+                );
+                
+                // Within 1km and same category
+                return dist < 1.0 && item.category_id === issue.category_id;
+              }).slice(0, 5);
+
+              if (nearbyIssues.length === 0) return (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyCardText}>No hay problemas similares reportados en un radio de 1km</Text>
+                </View>
+              );
+
+              return (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.nearbyContainer}>
+                  {nearbyIssues.map((item) => (
+                    <TouchableOpacity 
+                      key={item.id} 
+                      style={styles.nearbyCard}
+                      onPress={() => router.push({ pathname: '/issue-details', params: { id: item.id } })}
+                    >
+                      <Image 
+                        source={{ uri: fixImageUrl(item.images?.[0]?.full_url) || 'https://via.placeholder.com/150' }} 
+                        style={styles.nearbyImage} 
+                      />
+                      <View style={styles.nearbyDetails}>
+                        <Text style={styles.nearbyTitle} numberOfLines={1}>{item.title}</Text>
+                        <View style={styles.nearbyMeta}>
+                          <Ionicons name="location-outline" size={12} color={colors.textLight} />
+                          <Text style={styles.nearbyDistance}>
+                            {getDistance(Number(issue.latitude), Number(issue.longitude), Number(item.latitude), Number(item.longitude)).toFixed(2)} km
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              );
+            })()}
 
           </View>
           <View style={{ height: 100 }} />
@@ -508,7 +551,7 @@ export default function IssueDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -751,7 +794,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginRight: 12,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   commentUser: {
     fontSize: 14,
@@ -780,8 +823,8 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
     fontSize: 15,
-    marginBottom: 12,
     color: colors.textTitle,
+    marginBottom: 12,
   },
   submitCommentBtn: {
     backgroundColor: colors.primary,
@@ -797,6 +840,46 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+  nearbyContainer: {
+    marginBottom: 20,
+  },
+  nearbyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    width: width - 40,
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  nearbyImage: {
+    width: '100%',
+    height: 140,
+    backgroundColor: colors.border,
+  },
+  nearbyDetails: {
+    padding: 10,
+  },
+  nearbyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textTitle,
+    marginBottom: 4,
+  },
+  nearbyMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nearbyDistance: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginLeft: 4,
   },
   emptyCard: {
     backgroundColor: colors.surface,
@@ -864,7 +947,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF', 
   },
   adminActionContainer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 12,
     marginTop: 10,
@@ -904,7 +987,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.primary,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     marginRight: 8,
   },
   workerSelectBtnActive: {
@@ -917,7 +1000,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   assignmentNotesInput: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
@@ -926,6 +1009,7 @@ const styles = StyleSheet.create({
     height: 60,
     textAlignVertical: 'top',
     marginBottom: 10,
+    color: colors.textTitle,
   },
   assignWorkerBtn: {
     backgroundColor: colors.primary,

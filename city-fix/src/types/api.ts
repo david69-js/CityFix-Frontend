@@ -51,6 +51,10 @@ export interface Issue {
   created_at: string;
   updated_at: string;
   
+  // Admin visibility fields
+  is_hidden?: boolean;
+  hidden_reason?: string;
+  
   // Loaded from relations
   user?: User;
   category?: Category;

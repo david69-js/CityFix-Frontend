@@ -101,7 +101,7 @@ export default function WelcomeScreen() {
             </View>
           </View>
 
-          <View style={{ flex: 1, minHeight: 20 }} />
+          <View style={{ flex: 1 }} />
 
           {/* Actions Section */}
           <View style={styles.actionsContainer}>
@@ -133,12 +133,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
-    paddingTop: height * 0.05,
-    paddingBottom: 20,
+    paddingTop: height * 0.02,
+    paddingBottom: 10,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   logoContainer: {
     width: 80,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: colors.surface,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   featureCard: {
     width: '48%',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   iconCircle: {
     width: 36,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   primaryButtonText: {
     color: colors.primary,

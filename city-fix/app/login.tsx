@@ -222,7 +222,7 @@ export default function LoginScreen() {
             {/* Social Buttons */}
             <View style={styles.socialContainer}>
               <TouchableOpacity 
-                style={[styles.socialButton, googleLoginMutation.isPending && { opacity: 0.6 }]} 
+                style={[styles.socialButton, googleLoginMutation.isPending && { opacity: 0.6 }, { marginHorizontal: 0 }]} 
                 onPress={handleGoogleLogin}
                 disabled={googleLoginMutation.isPending}
               >
@@ -230,10 +230,6 @@ export default function LoginScreen() {
                 <Text style={styles.socialButtonText}>
                   {googleLoginMutation.isPending ? 'Conectando...' : 'Google'}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
-                <Ionicons name="logo-github" size={22} color="#333" style={styles.socialIcon} />
-                <Text style={styles.socialButtonText}>GitHub</Text>
               </TouchableOpacity>
             </View>
 

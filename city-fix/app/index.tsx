@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React from 'react';
@@ -8,37 +9,12 @@ import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { useUnreadCount } from '../src/hooks/useNotifications';
 import { fixImageUrl } from '../src/utils/image';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 
-const colors = {
-  primary: '#2065ff', // Bright blue header and buttons
-  background: '#F9FAFB', // Off-white app background
-  surface: '#FFFFFF', // Cards background
-  textTitle: '#111827', // Dark gray for titles
-  textSub: '#6B7280', // Medium gray for sub-texts
-  textLight: '#9CA3AF', // Lighter gray for dates and likes
-
-  // Icon colors
-  iconOrangeBg: '#FFF2EB',
-  iconOrangeFg: '#F97316',
-  iconBlueBg: '#EEF4FF',
-  iconBlueFg: '#3B82F6',
-  iconGreenBg: '#ECFDF5',
-  iconGreenFg: '#10B981',
-
-  // Tag colors (Fallbacks)
-  tagDefaultBg: '#4B5563',
-  tagGarbageBg: '#F59E0B',
-  tagRoadsBg: '#4B5563',
-  tagLightingBg: '#EAB308',
-  tagWaterBg: '#3B82F6',
-
-  border: '#E5E7EB',
-};
-
 // Helper for Category Colors (since backend only provides name/icon)
-const getCategoryColor = (name: string) => {
+const getCategoryColor = (name: string, colors: any) => {
   const n = name.toLowerCase();
   if (n.includes('basura')) return colors.tagGarbageBg;
   if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
@@ -59,17 +35,38 @@ const getStatusIcon = (name: string) => {
 export default function CityReporterDashboard() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const { data: users, isLoading: usersLoading } = useUsers();
   const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed();
   const unreadCount = useUnreadCount();
 
-  const reports = feedData?.data || [];
+  const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
 
-  // Calculate simple stats from feed
+  const allReports = feedData?.data || [];
+
+  // Filtering logic for the feed
+  const reports = React.useMemo(() => {
+    if (!filterStatus) return allReports;
+    return allReports.filter(r => {
+      const s = r.status?.name.toLowerCase() || '';
+      if (filterStatus === 'reported') return s.includes('reportado') || s.includes('pendiente');
+      if (filterStatus === 'progress') return s.includes('proceso') || s.includes('atendiendo');
+      if (filterStatus === 'resolved') return s.includes('resuelto') || s.includes('listo') || s.includes('finalizado');
+      return true;
+    });
+  }, [allReports, filterStatus]);
+
+  // Calculate simple stats from ALL feed data
   const stats = {
-    reported: reports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
-    inProgress: reports.filter(r => r.status?.name.toLowerCase().includes('proceso')).length,
-    resolved: reports.filter(r => r.status?.name.toLowerCase().includes('resuelto')).length,
+    reported: allReports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
+    inProgress: allReports.filter(r => r.status?.name.toLowerCase().includes('proceso') || r.status?.name.toLowerCase().includes('atendiendo')).length,
+    resolved: allReports.filter(r => r.status?.name.toLowerCase().includes('resuelto') || r.status?.name.toLowerCase().includes('listo') || r.status?.name.toLowerCase().includes('finalizado')).length,
+  };
+
+  const handleRefresh = () => {
+    setFilterStatus(null);
+    refetch();
   };
 
   return (
@@ -81,65 +78,84 @@ export default function CityReporterDashboard() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
 
-        {/* Header Background */}
-        <View style={styles.headerBg} />
+        {/* Premium Header with Gradient and Decorative Elements */}
+        <View style={styles.headerWrapper}>
+          <LinearGradient
+            colors={[colors.primary, '#1e40af']}
+            style={styles.headerBg}
+          />
+          
+          {/* Decorative Circles for Depth */}
+          <View style={styles.headerCircle1} />
+          <View style={styles.headerCircle2} />
 
-        {/* Header Content */}
-        <SafeAreaView>
-          <View style={styles.headerContent}>
-            <View style={styles.headerTopRow}>
-              <View>
-                <Text style={styles.headerTitle}>City Fix</Text>
-                <Text style={styles.headerSubtitle}>Ayuda a mejorar tu vecindario</Text>
+          <SafeAreaView>
+            <View style={styles.headerContent}>
+              <View style={styles.headerTopRow}>
+                <View>
+                  <View style={styles.titleWithIcon}>
+                    <Ionicons name="business" size={32} color="#FFF" style={{ marginRight: 10 }} />
+                    <Text style={styles.headerTitle}>CityFix</Text>
+                  </View>
+                  <Text style={styles.headerSubtitle}>Transformando el futuro urbano</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.notificationBell}
+                  onPress={() => router.push('/notifications')}
+                >
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+                    style={styles.bellGlass}
+                  >
+                    <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                    {unreadCount > 0 && <View style={styles.notificationDot} />}
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity 
-                style={styles.notificationBell}
-                onPress={() => router.push('/notifications')}
-              >
-                <Ionicons name="notifications-outline" size={26} color="#FFF" />
-                {unreadCount > 0 && <View style={styles.notificationDot} />}
-              </TouchableOpacity>
             </View>
+          </SafeAreaView>
 
-            {/* TEST API CARD 
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 12, marginTop: 15 }}>
-              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 13 }}>🔗 Test de Conexión Laravel API:</Text>
-              {usersLoading ? <Text style={{ color: '#FFF', fontSize: 12, marginTop: 4 }}>Cargando usuarios...</Text> : (
-                <Text style={{ color: '#FFF', fontSize: 12, marginTop: 4 }}>✅ Usuarios detectados: {users?.length || 0}</Text>
-              )}
-          </View>*/}
-          </View>
+          {/* Stats Row with Glassmorphism */}
+          <View style={styles.statsContainer}>
+            <TouchableOpacity 
+              style={[styles.statCard, filterStatus === 'reported' && styles.statCardActive]}
+              onPress={() => setFilterStatus(filterStatus === 'reported' ? null : 'reported')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(249, 115, 22, 0.2)' }]}>
+                <Ionicons name="alert-outline" size={20} color="#fb923c" />
+              </View>
+              <Text style={styles.statValue}>{stats.reported}</Text>
+              <Text style={styles.statLabel}>Pendiente</Text>
+            </TouchableOpacity>
 
-        </SafeAreaView>
+            <TouchableOpacity 
+              style={[styles.statCard, filterStatus === 'progress' && styles.statCardActive]}
+              onPress={() => setFilterStatus(filterStatus === 'progress' ? null : 'progress')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
+                <Ionicons name="trending-up" size={20} color="#60a5fa" />
+              </View>
+              <Text style={styles.statValue}>{stats.inProgress}</Text>
+              <Text style={styles.statLabel}>Proceso</Text>
+            </TouchableOpacity>
 
-        {/* Stats Row */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.iconOrangeBg }]}>
-              <Ionicons name="alert-outline" size={20} color={colors.iconOrangeFg} />
-            </View>
-            <Text style={styles.statValue}>{stats.reported}</Text>
-            <Text style={styles.statLabel}>Reportado</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.iconBlueBg }]}>
-              <Ionicons name="trending-up" size={20} color={colors.iconBlueFg} />
-            </View>
-            <Text style={styles.statValue}>{stats.inProgress}</Text>
-            <Text style={styles.statLabel}>En Proceso</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.iconGreenBg }]}>
-              <Ionicons name="trending-up" size={20} color={colors.iconGreenFg} />
-            </View>
-            <Text style={styles.statValue}>{stats.resolved}</Text>
-            <Text style={styles.statLabel}>Resuelto</Text>
+            <TouchableOpacity 
+              style={[styles.statCard, filterStatus === 'resolved' && styles.statCardActive]}
+              onPress={() => setFilterStatus(filterStatus === 'resolved' ? null : 'resolved')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+                <Ionicons name="checkmark-done" size={20} color="#34d399" />
+              </View>
+              <Text style={styles.statValue}>{stats.resolved}</Text>
+              <Text style={styles.statLabel}>Resuelto</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -214,7 +230,7 @@ export default function CityReporterDashboard() {
                   </View>
 
                   <View style={styles.reportFooterRow}>
-                    <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(report.category?.name || '') }]}>
+                    <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(report.category?.name || '', colors) }]}>
                       <Text style={styles.categoryTagText}>{report.category?.name || 'General'}</Text>
                     </View>
 
@@ -282,26 +298,51 @@ export default function CityReporterDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  headerWrapper: {
+    paddingBottom: 20,
+    position: 'relative',
+    overflow: 'hidden',
   },
   headerBg: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 250,
+    bottom: 0,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     backgroundColor: colors.primary,
+  },
+  headerCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  headerCircle2: {
+    position: 'absolute',
+    bottom: 20,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   scrollContent: {
     paddingBottom: 20,
   },
   headerContent: {
-    paddingTop: Platform.OS === 'android' ? 50 : 30, // Extra padding for Android status bar
+    paddingTop: Platform.OS === 'android' ? 40 : 10,
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 25,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -311,6 +352,12 @@ const styles = StyleSheet.create({
   notificationBell: {
     padding: 8,
     position: 'relative',
+  },
+  bellGlass: {
+    padding: 10,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   notificationDot: {
     position: 'absolute',
@@ -324,36 +371,51 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '900',
     color: '#FFF',
-    marginBottom: 6,
+    letterSpacing: -1,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerSubtitle: {
-    fontSize: 15,
-    color: '#E0E7FF',
-    fontWeight: '500',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    marginTop: -2,
+  },
+  titleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 0,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 5,
   },
   statCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: 20,
+    paddingVertical: 15,
     alignItems: 'center',
-    width: (width - 60) / 3, // 3 cards with 20px padding (x2) and 10px gap (x2)
+    width: (width - 60) / 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  statCardActive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    borderWidth: 2,
+    transform: [{ scale: 1.05 }],
+    elevation: 8,
   },
   statIconContainer: {
     width: 44,
@@ -364,15 +426,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     color: colors.textTitle,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 12,
-    color: colors.textSub,
-    fontWeight: '500',
+    fontSize: 11,
+    color: colors.textTitle,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -515,7 +579,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 12,
-    color: colors.textSub,
+    color: colors.textTitle,
     marginLeft: 4,
   },
   reportFooterRow: {
@@ -539,7 +603,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: colors.textLight,
+    color: colors.textSub,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -570,7 +634,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.textSub,
     fontWeight: '500',
     marginTop: 4,
   },

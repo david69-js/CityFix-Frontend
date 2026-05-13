@@ -8,19 +8,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useUpdateProfile } from '../src/hooks/useAuth';
 import apiClient from '../src/api/axios';
 import { useSendCampaign } from '../src/hooks/useNotifications';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  danger: '#EF4444',
-};
+// Dynamic colors will be used from useThemeColors
 
 const generateRandomCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -34,6 +26,8 @@ const generateRandomCode = () => {
 export default function AdminScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
 
   const translateRoleName = (name: string) => {
     if (name.toLowerCase() === 'worker') return 'Trabajador';
@@ -549,8 +543,8 @@ export default function AdminScreen() {
 
         {user?.role_id === 1 && (
           <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
-            <Text style={[styles.tabLabel, { color: colors.primary }]}>Admin</Text>
+            <Ionicons name="shield-checkmark" size={24} color={colors.danger} />
+            <Text style={[styles.tabLabel, { color: colors.danger }]}>Admin</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -560,6 +554,8 @@ export default function AdminScreen() {
 }
 
 function CampaignSection() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const sendCampaignMutation = useSendCampaign();
@@ -614,9 +610,9 @@ function CampaignSection() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  headerArea: { backgroundColor: colors.primary, paddingBottom: 20 },
+  headerArea: { backgroundColor: colors.danger, paddingBottom: 20 },
   headerTop: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, marginTop: 20 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   scrollContent: { paddingBottom: 20 },
@@ -654,13 +650,13 @@ const styles = StyleSheet.create({
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   iconCard: { width: 48, height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
   iconCardSelected: { borderColor: colors.primary, backgroundColor: '#EEF4FF' },
-  adminButton: { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, marginTop: 8 },
+  adminButton: { backgroundColor: colors.danger, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, marginTop: 8 },
   adminButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
   bottomTabBar: { boxShadow: '0 -2px 10px rgba(0,0,0,0.05)', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%' },
   tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
   tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
-  fabButton: { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' },
+  fabButton: { backgroundColor: colors.danger, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.danger, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' },
   roleChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   roleChipSelected: { borderColor: colors.primary, backgroundColor: '#EEF4FF' },
   roleChipText: { fontSize: 13, color: colors.textSub, fontWeight: '500' },

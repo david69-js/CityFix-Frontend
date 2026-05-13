@@ -4,20 +4,12 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications, useMarkAsRead } from '../src/hooks/useNotifications';
 import { formatDate } from '../src/utils/date';
-
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  unreadBg: '#EEF4FF',
-};
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const { data: notifications, isLoading, refetch, isRefetching } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
 
@@ -50,7 +42,7 @@ export default function NotificationsScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ 
         headerTitle: 'Notificaciones',
-        headerStyle: { backgroundColor: '#FFF' },
+        headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textTitle,
         headerShadowVisible: false,
         headerLeft: () => (
@@ -128,7 +120,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

@@ -8,6 +8,8 @@ import * as Location from 'expo-location';
 import { useCreateIssue } from '../src/hooks/useIssues';
 import { useCategories } from '../src/hooks/useCategories';
 import { useAuthStore } from '../src/store/authStore';
+import { useReverseGeocodeMutation } from '../src/hooks/useMaps';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +48,8 @@ const getCategoryIcon = (iconName: string) => {
 
 export default function ReportIssueScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const { user } = useAuthStore();
   
   // -- API Hooks --
@@ -72,6 +76,7 @@ export default function ReportIssueScreen() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const createIssueMutation = useCreateIssue();
+  const reverseGeocodeMutation = useReverseGeocodeMutation();
 
   const handleLaunchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -157,9 +162,24 @@ export default function ReportIssueScreen() {
       setLatitude(location.coords.latitude);
       setLongitude(location.coords.longitude);
       
-      // Auto-fill coordinates if no specific location string is provided to help user
+      // Try to reverse geocode via backend proxy for a human-readable address
       if (!locationText) {
-        setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
+        try {
+          const result = await reverseGeocodeMutation.mutateAsync({
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+          });
+          if (result?.results?.[0]?.formatted_address) {
+            setLocationText(result.results[0].formatted_address);
+          } else {
+            // Fallback to raw coordinates
+            setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
+          }
+        } catch (geoError) {
+          // Fallback to raw coordinates if reverse geocoding fails
+          console.warn('[Report] Reverse geocode failed, using coordinates:', geoError);
+          setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
+        }
       }
     } catch (e) {
       alert('No se pudo obtener la ubicación actual.');
@@ -427,7 +447,7 @@ export default function ReportIssueScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface },
   container: { flex: 1, backgroundColor: colors.background },
   keyboardView: { flex: 1 },

@@ -5,22 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
 import { useMyAssignments } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
-
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  danger: '#EF4444',
-  workerGreen: '#10B981',
-};
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 export default function AssignmentsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const { data: assignments, isLoading, refetch, isRefetching } = useMyAssignments();
 
   // Redirect if not worker
@@ -138,7 +129,7 @@ export default function AssignmentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { 
     paddingTop: Platform.OS === 'android' ? 40 : 16, 
@@ -153,7 +144,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
   dateText: { fontSize: 12, color: colors.textLight },
   title: { fontSize: 16, fontWeight: '700', color: colors.textTitle, marginBottom: 12 },
-  notesContainer: { flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 10, borderRadius: 8, marginBottom: 12, alignItems: 'flex-start' },
+  notesContainer: { flexDirection: 'row', backgroundColor: colors.border, padding: 10, borderRadius: 8, marginBottom: 12, alignItems: 'flex-start' },
   notesText: { fontSize: 13, color: colors.textSub, flex: 1 },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   statusText: { fontSize: 13, fontWeight: '600' },

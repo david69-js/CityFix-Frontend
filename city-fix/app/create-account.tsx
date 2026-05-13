@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRegister } from '../src/hooks/useAuth';
+import { useRegister, useGoogleLogin } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8', // Solid blue
@@ -32,6 +32,42 @@ export default function CreateAccountScreen() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const registerMutation = useRegister();
+  const googleLoginMutation = useGoogleLogin();
+
+  const handleGoogleLogin = async () => {
+    try {
+      setErrorMessage('');
+      let GoogleSignin;
+      try {
+        GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+      } catch (e) {
+        setErrorMessage('Google Sign-In no está disponible en este entorno.');
+        return;
+      }
+
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const idToken = response.data?.idToken;
+      
+      if (!idToken) {
+        setErrorMessage('No se pudo obtener el token de Google.');
+        return;
+      }
+      
+      googleLoginMutation.mutate(idToken, {
+        onSuccess: () => router.replace('/'),
+        onError: (e: any) => {
+          setErrorMessage('Error al autenticar con Google.');
+          console.error('[GoogleLogin] Error:', e);
+        }
+      });
+    } catch (error: any) {
+      console.error('[GoogleLogin] Sign In Error:', error);
+      if (error.code !== 'SIGN_IN_CANCELLED') {
+        setErrorMessage('Error al registrarse con Google.');
+      }
+    }
+  };
 
   const handleAuthAction = () => {
     setErrorMessage('');
@@ -256,13 +292,15 @@ export default function CreateAccountScreen() {
 
             {/* Social Buttons */}
             <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialButton} onPress={handleAuthAction}>
+              <TouchableOpacity 
+                style={[styles.socialButton, googleLoginMutation.isPending && { opacity: 0.6 }, { marginHorizontal: 0 }]} 
+                onPress={handleGoogleLogin}
+                disabled={googleLoginMutation.isPending}
+              >
                 <Ionicons name="logo-google" size={22} color="#DB4437" style={styles.socialIcon} />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleAuthAction}>
-                <Ionicons name="logo-github" size={22} color="#333" style={styles.socialIcon} />
-                <Text style={styles.socialButtonText}>GitHub</Text>
+                <Text style={styles.socialButtonText}>
+                  {googleLoginMutation.isPending ? 'Conectando...' : 'Google'}
+                </Text>
               </TouchableOpacity>
             </View>
 

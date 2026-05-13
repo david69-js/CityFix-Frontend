@@ -8,43 +8,15 @@ import apiClient from '../src/api/axios';
 import { useMyIssues } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { fixImageUrl } from '../src/utils/image';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width } = Dimensions.get('window');
-
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  danger: '#EF4444',
-
-  statBgBlue: '#F0F9FF',
-  statTextBlue: '#0284C7',
-  statBgGreen: '#F0FDF4',
-  statTextGreen: '#16A34A',
-  statBgPurple: '#FAF5FF',
-  statTextPurple: '#9333EA',
-  statBgOrange: '#FFFBEB',
-  statTextOrange: '#D97706',
-
-  orangeHero: '#F59E0B',
-  blueInfluencer: '#3B82F6',
-  greySuper: '#E5E7EB',
-
-  badgeYellowBg: '#FEF3C7',
-  badgeYellowText: '#92400E',
-  badgeBlueBg: '#DBEAFE',
-  badgeBlueText: '#1E40AF',
-  badgeGreyBg: '#F3F4F6',
-  badgeGreyText: '#9CA3AF',
-};
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, setUser, initializeAuth } = useAuthStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
 
   const { data: myIssues, isLoading: isLoadingIssues } = useMyIssues(user?.id);
   const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
@@ -397,7 +369,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

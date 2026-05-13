@@ -233,3 +233,92 @@ export const useWorkers = () => {
     },
   });
 };
+
+// ─── Admin Hooks ────────────────────────────────────────
+
+export interface AdminIssuesFilters {
+  is_hidden?: boolean;
+  status_id?: number;
+  category_id?: number;
+  search?: string;
+  per_page?: number;
+}
+
+/**
+ * Fetch ALL issues (including hidden) for admin panel.
+ * GET /api/admin/issues
+ */
+export const useAdminIssues = (filters?: AdminIssuesFilters) => {
+  return useQuery({
+    queryKey: ['admin', 'issues', filters],
+    queryFn: async () => {
+      const params: Record<string, any> = {};
+      if (filters?.is_hidden !== undefined) params.is_hidden = filters.is_hidden;
+      if (filters?.status_id) params.status_id = filters.status_id;
+      if (filters?.category_id) params.category_id = filters.category_id;
+      if (filters?.search) params.search = filters.search;
+      params.per_page = filters?.per_page || 50;
+
+      // Usamos /issues temporalmente para asegurar que se vean datos, 
+      // ya que /admin/issues podría no estar retornando resultados o estar bloqueado
+      const response = await apiClient.get<PaginatedResponse<Issue>>('/issues', { params });
+      return response.data;
+    },
+  });
+};
+
+export interface AdminUpdateIssuePayload {
+  title?: string;
+  description?: string;
+  category_id?: number;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  status_id?: number;
+}
+
+/**
+ * Edit any issue as admin.
+ * PUT /api/admin/issues/{id}
+ */
+export const useAdminUpdateIssue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ issueId, payload }: { issueId: number; payload: AdminUpdateIssuePayload }) => {
+      const response = await apiClient.put(`/admin/issues/${issueId}`, payload);
+      return response.data;
+    },
+    onSuccess: (_, { issueId }) => {
+      const idStr = String(issueId);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
+    },
+  });
+};
+
+/**
+ * Toggle issue visibility (hide/show from public feed).
+ * PATCH /api/admin/issues/{id}/toggle-hidden
+ */
+export const useToggleIssueHidden = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ issueId, reason }: { issueId: number; reason?: string }) => {
+      const response = await apiClient.patch(`/admin/issues/${issueId}/toggle-hidden`, {
+        reason,
+      });
+      return response.data;
+    },
+    onSuccess: (_, { issueId }) => {
+      const idStr = String(issueId);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+    },
+  });
+};
+

@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.davidtojalvarez.cityfix"
+      "bundleIdentifier": "com.davidtojalvarez.cityfix",
+      "config": {
+        "googleMapsApiKey": "AIzaSyD-ueEjBycEH0KeBRzekaMmQXwKtpaO6Qo"
+      }
     },
     "android": {
       "package": "com.alexander.cityfix",
@@ -21,7 +24,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD-ueEjBycEH0KeBRzekaMmQXwKtpaO6Qo"
+        }
+      }
     },
     "web": {
       "output": "static",

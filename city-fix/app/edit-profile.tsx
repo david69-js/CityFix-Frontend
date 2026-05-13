@@ -3,26 +3,21 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SafeAr
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
+import { useThemeStore } from '../src/store/themeStore';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
 import { fixImageUrl } from '../src/utils/image';
 
 const { width } = Dimensions.get('window');
 
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  danger: '#EF4444', 
-};
-
 export default function EditProfileScreen() {
   const router = useRouter();
   const { user, setUser } = useAuthStore();
+  
+  const { toggleTheme, theme } = useThemeStore();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
 
   const [firstName, setFirstName] = useState(user?.first_name || '');
   const [lastName, setLastName] = useState(user?.last_name || '');
@@ -251,6 +246,23 @@ export default function EditProfileScreen() {
                     : 'Febrero 2026'}
                 </Text>
               </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.accountRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="moon-outline" size={20} color={colors.textSub} style={{ marginRight: 8 }} />
+                  <Text style={styles.accountLabel}>Modo Oscuro</Text>
+                </View>
+                <TouchableOpacity 
+                  style={{ backgroundColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}
+                  onPress={toggleTheme}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.textSub }}>
+                    {theme === 'dark' ? 'Desactivar' : 'Activar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Action Buttons */}
@@ -316,7 +328,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -360,7 +372,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.border, // Dynamic background
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -484,7 +496,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6', // Light gray background
+    backgroundColor: colors.border, // Dynamic background
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

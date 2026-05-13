@@ -1,102 +1,121 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { useIssuesFeed } from '../src/hooks/useIssues';
 import { useAuthStore } from '../src/store/authStore';
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 const { width, height } = Dimensions.get('window');
 
 const colors = {
-  primary: '#2065ff', // Bright blue
+  primary: '#2065ff',
   background: '#F9FAFB', 
   surface: '#FFFFFF', 
   textTitle: '#111827', 
   textSub: '#4B5563', 
   textLight: '#9CA3AF', 
   border: '#E5E7EB',
-  
-  // Map specific
-  mapBg: '#F0F9FA',
-  gridLine: '#E4F1F2',
-  
-  pinBlueBg: '#DBEAFE',
-  pinBlueFg: '#3B82F6',
-  pinOrangeBg: '#FFEDD5',
-  pinOrangeFg: '#F97316',
-  pinGreenBg: '#D1FAE5',
-  pinGreenFg: '#10B981',
 };
 
-// Simple component to generate a background grid
-const MapGrid = () => {
-  const gridSize = 40;
-  const cols = Math.ceil(width / gridSize);
-  const rows = Math.ceil((height - 150) / gridSize);
-  
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
-        {Array.from({ length: rows * cols }).map((_, i) => (
-          <View 
-            key={i} 
-            style={{ 
-              width: gridSize, 
-              height: gridSize, 
-              borderRightWidth: 1, 
-              borderBottomWidth: 1, 
-              borderColor: colors.gridLine,
-              backgroundColor: colors.mapBg,
-            }} 
-          />
-        ))}
-      </View>
-    </View>
-  );
+// Default region: Cochabamba, Bolivia
+const DEFAULT_REGION = {
+  latitude: -17.3895,
+  longitude: -66.1568,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
+
+// Pin color based on status
+const getMarkerColor = (statusName?: string): string => {
+  if (!statusName) return '#3B82F6'; // blue default
+  const name = statusName.toLowerCase();
+  if (name.includes('reportado') || name.includes('pendiente')) return '#F97316'; // orange
+  if (name.includes('proceso')) return '#3B82F6'; // blue
+  if (name.includes('resuelto') || name.includes('completado')) return '#10B981'; // green
+  return '#9CA3AF'; // gray
 };
 
 export default function MapScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { data: feedData, isLoading } = useIssuesFeed();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
+  const { data: feedData, isLoading } = useIssuesFeed(100);
   const [activeFilter, setActiveFilter] = useState('Todos');
+  const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const mapRef = useRef<MapView>(null);
 
   const allReports = feedData?.data || [];
-  
+
+  // Request user location on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        }
+      } catch (e) {
+        console.warn('[Map] Could not get user location:', e);
+      }
+    })();
+  }, []);
+
   // Filtering logic
   const filteredReports = allReports.filter(report => {
     if (activeFilter === 'Todos') return true;
-    const statusName = report.status?.name.toLowerCase() || '';
-    if (activeFilter === 'Reportados') return statusName.includes('reportado') || statusName.includes('pendiente');
-    if (activeFilter === 'En Proceso') return statusName.includes('proceso');
-    if (activeFilter === 'Resueltos') return statusName.includes('resuelto');
+    
+    const statusName = report.status?.name?.toLowerCase() || '';
+    
+    if (activeFilter === 'Pendientes') {
+      return statusName.includes('reportado') || statusName.includes('pendiente');
+    }
+    if (activeFilter === 'En Proceso') {
+      return statusName.includes('proceso') || statusName.includes('atendiendo');
+    }
+    if (activeFilter === 'Resueltos') {
+      return statusName.includes('resuelto') || statusName.includes('completado') || statusName.includes('finalizado');
+    }
     return true;
   });
 
   const getCounts = () => ({
     all: allReports.length,
-    reported: allReports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
-    inProgress: allReports.filter(r => r.status?.name.toLowerCase().includes('proceso')).length,
-    resolved: allReports.filter(r => r.status?.name.toLowerCase().includes('resuelto')).length,
+    reported: allReports.filter(r => { const s = r.status?.name?.toLowerCase() || ''; return s.includes('reportado') || s.includes('pendiente'); }).length,
+    inProgress: allReports.filter(r => r.status?.name?.toLowerCase().includes('proceso')).length,
+    resolved: allReports.filter(r => { const s = r.status?.name?.toLowerCase() || ''; return s.includes('resuelto') || s.includes('completado'); }).length,
   });
 
   const counts = getCounts();
 
-  // Helper to place pins deterministically on the "mockup" map based on their ID
-  // since we don't have a real coordinate-to-screen mapping without a real library.
-  const getPinPosition = (id: number, index: number) => {
-    // These are just illustrative positions for the mockup
-    const seeds = [
-      { top: '25%', left: '15%' },
-      { top: '45%', left: '15%' },
-      { top: '25%', left: '45%' },
-      { top: '25%', left: '75%' },
-      { top: '55%', left: '40%' },
-      { top: '15%', left: '60%' },
-      { top: '70%', left: '20%' },
-      { top: '40%', left: '80%' },
-    ];
-    return seeds[index % seeds.length];
+  // Center map on user location
+  const handleCenterOnUser = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion({
+        ...userLocation,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 800);
+    }
+  };
+
+  // Fit all markers
+  const handleFitAll = () => {
+    if (filteredReports.length > 0 && mapRef.current) {
+      const coords = filteredReports
+        .filter(r => r.latitude && r.longitude)
+        .map(r => ({ latitude: r.latitude, longitude: r.longitude }));
+      if (coords.length > 0) {
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 80, right: 60, bottom: 80, left: 60 },
+          animated: true,
+        });
+      }
+    }
   };
 
   return (
@@ -111,93 +130,106 @@ export default function MapScreen() {
               <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Mapa de Problemas</Text>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="funnel-outline" size={22} color={colors.textTitle} />
+            <TouchableOpacity style={styles.iconButton} onPress={handleFitAll}>
+              <Ionicons name="expand-outline" size={22} color={colors.textTitle} />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
 
-        {/* Filters Scroll Menu */}
+        {/* Filters */}
         <View style={styles.filtersWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
-            <TouchableOpacity 
-              style={[styles.filterChip, activeFilter === 'Todos' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('Todos')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'Todos' && styles.filterTextActive]}>
-                Todos ({counts.all})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.filterChip, activeFilter === 'Reportados' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('Reportados')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'Reportados' && styles.filterTextActive]}>
-                Reportados ({counts.reported})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.filterChip, activeFilter === 'En Proceso' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('En Proceso')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'En Proceso' && styles.filterTextActive]}>
-                En Proceso ({counts.inProgress})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.filterChip, activeFilter === 'Resueltos' && styles.filterChipActive]}
-              onPress={() => setActiveFilter('Resueltos')}
-            >
-              <Text style={[styles.filterText, activeFilter === 'Resueltos' && styles.filterTextActive]}>
-                Resueltos ({counts.resolved})
-              </Text>
-            </TouchableOpacity>
+            {[
+              { key: 'Todos', count: counts.all },
+              { key: 'Pendientes', count: counts.reported },
+              { key: 'En Proceso', count: counts.inProgress },
+              { key: 'Resueltos', count: counts.resolved },
+            ].map(f => (
+              <TouchableOpacity 
+                key={f.key}
+                style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
+                onPress={() => setActiveFilter(f.key)}
+              >
+                <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
+                  {f.key} ({f.count})
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
 
-        {/* Map Area */}
+        {/* Map */}
         <View style={styles.mapArea}>
-          <MapGrid />
-
           {isLoading ? (
-            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
               <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ marginTop: 12, color: colors.textSub, fontSize: 14 }}>Cargando mapa...</Text>
             </View>
           ) : (
-            filteredReports.map((report, index) => {
-              const pos = getPinPosition(report.id, index);
-              const color = report.status?.color || colors.pinBlueFg;
-              
-              return (
-                <TouchableOpacity 
-                  key={report.id} 
-                  style={[styles.pinWrapper, { top: pos.top as any, left: pos.left as any }]}
-                  onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
-                >
-                  <View style={[styles.pinOuter, { backgroundColor: color + '20' }]}>
-                    <View style={[styles.pinInner, { backgroundColor: color }]}>
-                      <Ionicons name="location-outline" size={14} color="#FFF" />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+            <MapView
+              ref={mapRef}
+              style={StyleSheet.absoluteFill}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={userLocation ? { ...userLocation, latitudeDelta: 0.03, longitudeDelta: 0.03 } : DEFAULT_REGION}
+              showsUserLocation={true}
+              showsMyLocationButton={false}
+              showsCompass={true}
+              showsScale={true}
+              mapType="standard"
+            >
+              {filteredReports
+                .filter(report => report.latitude && report.longitude)
+                .map(report => (
+                  <Marker
+                    key={report.id}
+                    coordinate={{
+                      latitude: Number(report.latitude),
+                      longitude: Number(report.longitude),
+                    }}
+                    pinColor={report.status?.color || getMarkerColor(report.status?.name)}
+                    title={report.title}
+                    description={report.location || `${report.latitude}, ${report.longitude}`}
+                    onCalloutPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
+                  >
+                    <Callout 
+                      tooltip={false} 
+                      onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
+                    >
+                      <View style={styles.calloutContainer}>
+                        <Text style={styles.calloutTitle} numberOfLines={2}>{report.title}</Text>
+                        <Text style={styles.calloutLocation} numberOfLines={1}>
+                          📍 {report.location || 'Sin ubicación'}
+                        </Text>
+                        <View style={styles.calloutStatusRow}>
+                          <View style={[styles.calloutDot, { backgroundColor: report.status?.color || getMarkerColor(report.status?.name) }]} />
+                          <Text style={styles.calloutStatus}>{report.status?.name || 'Sin estado'}</Text>
+                        </View>
+                        <Text style={styles.calloutHint}>Tocar para ver detalles →</Text>
+                      </View>
+                    </Callout>
+                  </Marker>
+                ))
+              }
+            </MapView>
           )}
 
-          {/* Zoom Controls */}
-          <View style={styles.zoomControls}>
-            <TouchableOpacity style={styles.zoomBtn}>
-              <Ionicons name="add" size={24} color={colors.textTitle} />
-            </TouchableOpacity>
-            <View style={styles.zoomDivider} />
-            <TouchableOpacity style={styles.zoomBtn}>
-              <Ionicons name="remove" size={24} color={colors.textTitle} />
+          {/* Floating buttons */}
+          <View style={styles.floatingButtons}>
+            {userLocation && (
+              <TouchableOpacity style={styles.floatingBtn} onPress={handleCenterOnUser}>
+                <Ionicons name="locate" size={22} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.floatingBtn} onPress={handleFitAll}>
+              <Ionicons name="scan-outline" size={22} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
+          {/* Issues counter badge */}
+          <View style={styles.counterBadge}>
+            <Ionicons name="flag" size={14} color="#FFF" />
+            <Text style={styles.counterText}>{filteredReports.length} reportes</Text>
+          </View>
         </View>
 
         {/* Bottom Tabs */}
@@ -207,8 +239,8 @@ export default function MapScreen() {
             <Text style={styles.tabLabel}>Inicio</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-            <Ionicons name="map-outline" size={24} color={colors.primary} />
+          <TouchableOpacity style={styles.tabItem}>
+            <Ionicons name="map" size={24} color={colors.primary} />
             <Text style={[styles.tabLabel, { color: colors.primary }]}>Mapa</Text>
           </TouchableOpacity>
 
@@ -244,7 +276,7 @@ export default function MapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -281,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterChip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.border,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -292,7 +324,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 14,
-    color: colors.textSub,
+    color: colors.textTitle,
     fontWeight: '500',
   },
   filterTextActive: {
@@ -301,58 +333,88 @@ const styles = StyleSheet.create({
   mapArea: {
     flex: 1,
     position: 'relative',
-    overflow: 'hidden',
   },
-  pinWrapper: {
+  // Callout styles
+  calloutContainer: {
+    width: 220,
+    padding: 10,
+  },
+  calloutTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textTitle,
+    marginBottom: 4,
+  },
+  calloutLocation: {
+    fontSize: 12,
+    color: colors.textSub,
+    marginBottom: 6,
+  },
+  calloutStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  calloutDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  calloutStatus: {
+    fontSize: 12,
+    color: colors.textSub,
+    fontWeight: '500',
+  },
+  calloutHint: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  // Floating controls
+  floatingButtons: {
     position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pinOuter: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  pinInner: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  zoomControls: {
-    position: 'absolute',
-    top: 20,
+    top: 16,
     right: 16,
-    backgroundColor: colors.surface,
+    gap: 10,
+  },
+  floatingBtn: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
-    overflow: 'hidden',
   },
-  zoomBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
+  counterBadge: {
+    position: 'absolute',
+    bottom: 120,
+    alignSelf: 'center',
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  zoomDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    width: '100%',
+  counterText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
+  // Bottom tabs
   bottomTabBar: {
-    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
