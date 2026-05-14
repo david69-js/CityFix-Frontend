@@ -32,8 +32,19 @@ export default function LoginScreen() {
         return;
       }
 
-      await GoogleSignin.hasPlayServices();
-      await GoogleSignin.signOut(); // Force account picker
+      // Check play services only on Android
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices();
+      }
+      
+      // Safely signOut to force account picker, but don't let it crash the flow
+      try {
+        await GoogleSignin.signOut(); 
+      } catch (e) {
+        // Ignore if not signed in
+      }
+
+      console.log('[GoogleLogin] Opening native modal...');
       const response = await GoogleSignin.signIn();
       
       const idToken = response.data?.idToken;
@@ -45,16 +56,22 @@ export default function LoginScreen() {
       
       googleLoginMutation.mutate(idToken, {
         onSuccess: () => {
+          // No need to redirect manually if _layout handles it, 
+          // but we do it for immediate feedback.
           router.replace('/');
         },
         onError: (e: any) => {
           setErrorMessage('Error al autenticar con el servidor usando Google.');
-          console.error('[GoogleLogin] Error:', e);
+          console.error('[GoogleLogin] Server Auth Error:', e);
         }
       });
     } catch (error: any) {
-      console.error('[GoogleLogin] Sign In Error:', error);
-      if (error.code !== 'SIGN_IN_CANCELLED') {
+      console.log('[GoogleLogin] Sign In Error Details:', error);
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        // User cancelled, no error message needed
+      } else if (error.code === 'IN_PROGRESS') {
+        setErrorMessage('Ya hay un proceso de inicio de sesión en curso.');
+      } else {
         setErrorMessage('Error al iniciar sesión con Google.');
       }
     }

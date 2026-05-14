@@ -1,8 +1,11 @@
 import React from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform, Alert } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden, useUpdateIssue } from '../src/hooks/useIssues';
+import { useCategories } from '../src/hooks/useCategories';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { useThemeColors } from '../src/hooks/useThemeColors';
@@ -31,14 +34,117 @@ export default function IssueDetailsScreen() {
   const toggleHiddenMutation = useToggleIssueHidden();
   const { data: workers } = useWorkers();
   const { data: feedData } = useIssuesFeed(100);
+  const { data: categories } = useCategories();
+  const updateIssueMutation = useUpdateIssue();
   
   const [newComment, setNewComment] = React.useState('');
   const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
   const [assignmentNotes, setAssignmentNotes] = React.useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
 
+  // Editing states
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
+  const [editCategoryId, setEditCategoryId] = React.useState<number | null>(null);
+  const [editLocation, setEditLocation] = React.useState('');
+  const [editLatitude, setEditLatitude] = React.useState<number | null>(null);
+  const [editLongitude, setEditLongitude] = React.useState<number | null>(null);
+  const [isLocating, setIsLocating] = React.useState(false);
+
   const scrollRef = React.useRef<ScrollView>(null);
   const commentInputRef = React.useRef<TextInput>(null);
+
+  const isOwner = issue?.user_id === user?.id || issue?.user?.id === user?.id;
+
+  React.useEffect(() => {
+    if (issue && !isEditing) {
+      setEditTitle(issue.title);
+      setEditDescription(issue.description);
+      setEditCategoryId(issue.category_id);
+      setEditLocation(issue.location);
+      setEditLatitude(issue.latitude);
+      setEditLongitude(issue.longitude);
+    }
+  }, [issue, isEditing]);
+
+  const getCurrentLocation = async () => {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Error', 'Permiso de ubicación denegado');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setEditLatitude(location.coords.latitude);
+      setEditLongitude(location.coords.longitude);
+
+      const reverse = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      if (reverse && reverse.length > 0) {
+        const addr = reverse[0];
+        const readable = `${addr.street || ''} ${addr.streetNumber || ''}, ${addr.city || addr.subregion || ''}`;
+        setEditLocation(readable.trim() || `Coord: ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo obtener la ubicación actual.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const handleUpdateIssue = async () => {
+    if (!issue) return;
+    try {
+      await updateIssueMutation.mutateAsync({
+        issueId: issue.id,
+          payload: {
+            title: editTitle,
+            description: editDescription,
+            category_id: editCategoryId || issue.category_id,
+            location: editLocation,
+            latitude: editLatitude || issue.latitude,
+            longitude: editLongitude || issue.longitude,
+          }
+      });
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Reporte actualizado correctamente');
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo actualizar el reporte');
+    }
+  };
+
+  const handleArchiveIssue = async () => {
+    if (!issue) return;
+    Alert.alert(
+      'Archivar Reporte',
+      '¿Estás seguro de que deseas archivar este reporte? Dejará de ser visible en el feed público.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sí, archivar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await updateIssueMutation.mutateAsync({
+                issueId: issue.id,
+                payload: { is_hidden: true } as any
+              });
+              Alert.alert('Archivado', 'El reporte ha sido archivado correctamente.');
+              router.back();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo archivar el reporte.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleAssignWorker = () => {
     if (!issue || !selectedWorker) return;
@@ -163,9 +269,29 @@ export default function IssueDetailsScreen() {
               <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Detalles del Reporte</Text>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="share-social-outline" size={24} color={colors.textTitle} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row' }}>
+              {isOwner && (
+                <TouchableOpacity 
+                  onPress={() => isEditing ? handleUpdateIssue() : setIsEditing(true)} 
+                  style={[styles.iconButton, { marginRight: 8 }]}
+                >
+                  <Ionicons 
+                    name={isEditing ? "save-outline" : "create-outline"} 
+                    size={24} 
+                    color={isEditing ? colors.workerGreen : colors.textTitle} 
+                  />
+                </TouchableOpacity>
+              )}
+              {isEditing ? (
+                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.iconButton}>
+                  <Ionicons name="close-outline" size={24} color={colors.danger} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.iconButton}>
+                  <Ionicons name="share-social-outline" size={24} color={colors.textTitle} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </SafeAreaView>
 
@@ -176,18 +302,20 @@ export default function IssueDetailsScreen() {
         >
           
           {/* Main Image */}
-          {mainImage ? (
-            <Image 
-              source={{ uri: mainImage }} 
-              style={styles.heroImage} 
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="image-outline" size={48} color={colors.textLight} />
-              <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
-            </View>
-          )}
+          <View>
+            {mainImage ? (
+              <Image 
+                source={{ uri: mainImage }} 
+                style={styles.heroImage} 
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="image-outline" size={48} color={colors.textLight} />
+                <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
+              </View>
+            )}
+          </View>
 
           <View style={styles.contentPadding}>
             
@@ -304,16 +432,66 @@ export default function IssueDetailsScreen() {
 
             {/* Title & Tag */}
             <View style={styles.titleRow}>
-              <Text style={styles.issueTitle}>{issue.title}</Text>
-              <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(issue.category?.name || '', colors) }]}>
-                <Text style={styles.categoryTagText}>{issue.category?.name || 'General'}</Text>
-              </View>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.issueTitle, styles.editInput]}
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="Título del reporte"
+                  placeholderTextColor={colors.textLight}
+                />
+              ) : (
+                <Text style={styles.issueTitle}>{issue.title}</Text>
+              )}
+              
+              {!isEditing && (
+                <View style={[styles.categoryTag, { backgroundColor: getCategoryColor(issue.category?.name || '', colors) }]}>
+                  <Text style={styles.categoryTagText}>{issue.category?.name || 'General'}</Text>
+                </View>
+              )}
             </View>
 
+            {/* Category Selector in Edit Mode - REDESIGN */}
+            {isEditing && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[styles.adminActionLabel, { marginBottom: 10 }]}>Seleccionar Categoría:</Text>
+                <View style={styles.categoryGrid}>
+                  {categories?.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryPill,
+                        editCategoryId === cat.id && { backgroundColor: getCategoryColor(cat.name, colors), borderColor: getCategoryColor(cat.name, colors) }
+                      ]}
+                      onPress={() => setEditCategoryId(cat.id)}
+                    >
+                      <Text style={[
+                        styles.categoryPillText,
+                        editCategoryId === cat.id && { color: '#FFF' }
+                      ]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Description */}
-            <Text style={styles.descriptionText}>
-              {issue.description || 'Sin descripción adicional proporcionada.'}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.descriptionText, styles.editInput, { minHeight: 100, textAlignVertical: 'top' }]}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Descripción detallada..."
+                placeholderTextColor={colors.textLight}
+                multiline
+              />
+            ) : (
+              <Text style={styles.descriptionText}>
+                {issue.description || 'Sin descripción adicional proporcionada.'}
+              </Text>
+            )}
 
             {/* Info Card */}
             <View style={styles.infoCard}>
@@ -321,7 +499,38 @@ export default function IssueDetailsScreen() {
                 <Ionicons name="location-outline" size={22} color={colors.textLight} style={styles.infoIcon} />
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Ubicación</Text>
-                  <Text style={styles.infoValue}>{issue.location}</Text>
+                  {isEditing ? (
+                    <View>
+                      <TextInput
+                        style={[styles.infoValue, styles.editInput, { marginTop: 4, width: '100%' }]}
+                        value={editLocation}
+                        onChangeText={setEditLocation}
+                        placeholder="Dirección o punto de referencia"
+                        placeholderTextColor={colors.textLight}
+                      />
+                      <TouchableOpacity 
+                        style={styles.gpsButton} 
+                        onPress={getCurrentLocation}
+                        disabled={isLocating}
+                      >
+                        {isLocating ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons name="navigate" size={16} color={colors.primary} />
+                            <Text style={styles.gpsButtonText}>Usar mi ubicación actual (GPS)</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      {(editLatitude !== null && editLongitude !== null) && (
+                        <Text style={styles.coordinatesText}>
+                          Lat: {Number(editLatitude).toFixed(6)}, Lon: {Number(editLongitude).toFixed(6)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.infoValue}>{issue.location}</Text>
+                  )}
                 </View>
               </View>
 
@@ -474,50 +683,29 @@ export default function IssueDetailsScreen() {
               ))}
             </View>
 
-            {/* Admin Action: Archive Issue (Moved to the bottom of timeline) */}
-            {user?.role_id === 1 && (
-              <View style={{ marginTop: 0, marginBottom: 20 }}>
+            {/* Archive Action (Exclusive for Owner or Admin) */}
+            {(isOwner || user?.role_id === 1) && (
+              <View style={{ marginTop: 20, marginBottom: 20 }}>
                 <TouchableOpacity
                   style={[
                     styles.archiveBtn, 
                     issue?.is_hidden && styles.archiveBtnActive,
-                    toggleHiddenMutation.isPending && { opacity: 0.7 }
+                    updateIssueMutation.isPending && { opacity: 0.7 }
                   ]}
-                  onPress={() => {
-                    const isHidden = issue?.is_hidden;
-                    Alert.alert(
-                      isHidden ? 'Mostrar reporte' : 'Archivar reporte',
-                      isHidden 
-                        ? '¿Deseas que este reporte sea visible nuevamente en el feed público?' 
-                        : '¿Estás seguro de archivar este reporte? Dejará de ser visible para los ciudadanos.',
-                      [
-                        { text: 'Cancelar', style: 'cancel' },
-                        {
-                          text: isHidden ? 'Mostrar' : 'Archivar',
-                          onPress: () => toggleHiddenMutation.mutate({
-                            issueId: issue.id,
-                            reason: isHidden ? undefined : 'Archivado por administrador'
-                          })
-                        }
-                      ]
-                    );
-                  }}
-                  disabled={toggleHiddenMutation.isPending}
+                  onPress={handleArchiveIssue}
                 >
-                  {toggleHiddenMutation.isPending ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name={issue?.is_hidden ? 'eye-outline' : 'eye-off-outline'} size={18} color="#FFF" />
-                      <Text style={styles.archiveBtnText}>
-                        {issue?.is_hidden ? 'Hacer Visible (Desarchivar)' : 'Archivar Reporte'}
-                      </Text>
-                    </>
-                  )}
+                  <Ionicons 
+                    name={issue?.is_hidden ? "eye-outline" : "archive-outline"} 
+                    size={20} 
+                    color="#FFF" 
+                  />
+                  <Text style={styles.archiveBtnText}>
+                    {issue?.is_hidden ? "Restaurar Reporte" : "Archivar Reporte"}
+                  </Text>
                 </TouchableOpacity>
-                {issue?.is_hidden && issue.hidden_reason && (
+                {issue?.is_hidden && (
                   <Text style={styles.archiveReasonText}>
-                    Motivo: {issue.hidden_reason}
+                    Este reporte está actualmente oculto del feed público.
                   </Text>
                 )}
               </View>
@@ -1103,5 +1291,76 @@ const getStyles = (colors: any) => StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: 16,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    color: colors.textTitle,
+    marginBottom: 10,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  categoryPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSub,
+  },
+  editImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editImageCircle: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 20,
+    borderRadius: 50,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  editImageText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+  gpsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '15',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  gpsButtonText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  coordinatesText: {
+    fontSize: 11,
+    color: colors.textLight,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });

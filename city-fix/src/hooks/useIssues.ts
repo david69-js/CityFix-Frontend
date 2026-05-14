@@ -78,6 +78,51 @@ export const useCreateIssue = () => {
   });
 };
 
+export const useUpdateIssue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ issueId, payload }: { issueId: number; payload: Partial<CreateIssuePayload> }) => {
+      const formData = new FormData();
+      
+      if (payload.title) formData.append('title', payload.title);
+      if (payload.description) formData.append('description', payload.description);
+      if (payload.category_id) formData.append('category_id', payload.category_id.toString());
+      if (payload.location) formData.append('location', payload.location);
+      if (payload.latitude) formData.append('latitude', payload.latitude.toString());
+      if (payload.longitude) formData.append('longitude', payload.longitude.toString());
+
+      if (payload.image) {
+        formData.append('image', {
+          uri: payload.image.uri,
+          type: payload.image.type,
+          name: payload.image.name,
+        } as any);
+      }
+
+      // IMPORTANTE: Laravel y otros frameworks requieren POST + _method: PUT 
+      // para procesar archivos en una actualización.
+      formData.append('_method', 'PUT');
+
+      console.log(`[DEBUG] Enviando actualización para issue ${issueId}...`);
+
+      const response = await apiClient.post(`/issues/${issueId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    },
+    onSuccess: (_, { issueId }) => {
+      const idStr = String(issueId);
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
+    },
+  });
+};
+
 export const useIssuesFeed = (perPage = 15, filters?: {
   search?: string;
   user_id?: number;
@@ -208,8 +253,8 @@ export const useIssueDetails = (id: number | string | null, userId?: number) => 
       };
       
       // Sincronizar caché local si el backend sí envió el dato
-      if (issueData.has_voted !== undefined || issueData.voted !== undefined) {
-        saveLocalVote(id, issue.has_voted);
+      if (id && (issueData.has_voted !== undefined || issueData.voted !== undefined)) {
+        saveLocalVote(id, !!issue.has_voted);
       }
       
       console.log(`[DEBUG] useIssueDetails(${id}) - Final state -> has_voted:`, issue.has_voted, 'upvotes:', issue.upvotes_count);
