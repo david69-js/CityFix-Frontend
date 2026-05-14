@@ -10,6 +10,7 @@ import { formatDate } from '../src/utils/date';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
 import { fixImageUrl, getCategoryColor } from '../src/utils/helpers';
+// import { generateSummaryPDF } from '../src/utils/pdfGenerator';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
   const { data: myIssues, isLoading: isLoadingIssues } = useMyIssues(user?.id);
   const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const reportedCount = myIssues?.filter(i => i.status_id === 1 || i.status?.name?.toLowerCase().includes('reportado') || i.status?.name?.toLowerCase().includes('pendiente')).length || 0;
   const processCount = myIssues?.filter(i => i.status_id === 2 || i.status?.name?.toLowerCase().includes('proceso')).length || 0;
@@ -236,6 +238,50 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+
+          {/* Admin / Worker Actions */}
+          {(user?.role_id === 1 || user?.role_id === 2) && (
+            <>
+              <Text style={styles.sectionTitle}>Panel de Control</Text>
+              <View style={styles.card}>
+                <Text style={{ fontSize: 14, color: colors.textSub, marginBottom: 12 }}>
+                  Generar resumen de todos los reportes de la ciudad en PDF.
+                </Text>
+                
+                <TouchableOpacity
+                  style={[styles.pdfSummaryBtn, isGeneratingSummary && styles.pdfSummaryBtnDisabled]}
+                  disabled={isGeneratingSummary}
+                  onPress={async () => {
+                    setIsGeneratingSummary(true);
+                    try {
+                      Alert.alert('Funcionalidad en pausa', 'La generación de PDF está temporalmente desactivada hasta que se complete la compilación nativa.');
+                      /*
+                      // Fetch all reports (up to 100 for summary)
+                      const response = await apiClient.get('/issues/feed?per_page=100');
+                      const issuesList = response.data?.data || [];
+                      // Ensure we don't include hidden if needed, or include them if admin
+                      await generateSummaryPDF(issuesList, 'Todos los Estados');
+                      */
+                    } catch (error) {
+                      Alert.alert('Error', 'No se pudo generar el resumen.');
+                    } finally {
+                      setIsGeneratingSummary(false);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {isGeneratingSummary ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="document-text" size={18} color="#FFF" />
+                      <Text style={styles.pdfSummaryBtnText}>Exportar Resumen (PDF)</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           {/* My Reports */}
           <Text style={styles.sectionTitle}>Mis Reportes</Text>
@@ -535,6 +581,33 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     color: colors.textSub,
     fontWeight: '500',
+  },
+  footerLink: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  pdfSummaryBtn: {
+    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pdfSummaryBtnDisabled: {
+    opacity: 0.6,
+  },
+  pdfSummaryBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
   statusCount: {
     fontSize: 14,

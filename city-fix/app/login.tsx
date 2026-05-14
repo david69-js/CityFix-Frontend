@@ -33,6 +33,7 @@ export default function LoginScreen() {
       }
 
       await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signOut(); // Force account picker
       const response = await GoogleSignin.signIn();
       
       const idToken = response.data?.idToken;
@@ -110,7 +111,6 @@ export default function LoginScreen() {
           // Catch-all for other HTTP errors
           setErrorMessage(data?.message || data?.error || `Error inesperado (${status}).`);
         }
-        console.error(`[Login] HTTP ${status}:`, data);
       }
     });
   };

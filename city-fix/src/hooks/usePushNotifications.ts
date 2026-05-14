@@ -36,8 +36,12 @@ export const usePushNotifications = () => {
         await registerFCMToken.mutateAsync(mockToken);
         
         console.log('[PushNotifications] Token registered successfully');
-      } catch (error) {
-        console.error('[PushNotifications] Registration error:', error);
+      } catch (error: any) {
+        if (error?.response?.status === 401) {
+          console.log('[PushNotifications] Skipping registration, user not fully authenticated (401).');
+        } else {
+          console.error('[PushNotifications] Registration error:', error?.message || error);
+        }
       }
     };
 

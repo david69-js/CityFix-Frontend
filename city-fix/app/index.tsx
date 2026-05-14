@@ -122,7 +122,8 @@ export default function CityReporterDashboard() {
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Platform.OS === 'android' ? 120 : 40 }]}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />
         }

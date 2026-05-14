@@ -38,6 +38,7 @@ export default function CreateAccountScreen() {
       }
 
       await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signOut(); // Force account picker
       const response = await GoogleSignin.signIn();
       const idToken = response.data?.idToken;
       

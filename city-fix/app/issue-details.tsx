@@ -8,6 +8,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
 import { getCategoryColor, getStatusIcon, fixImageUrl } from '../src/utils/helpers';
+// import { generateIssueDetailPDF } from '../src/utils/pdfGenerator';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ export default function IssueDetailsScreen() {
   const [newComment, setNewComment] = React.useState('');
   const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
   const [assignmentNotes, setAssignmentNotes] = React.useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
 
   const scrollRef = React.useRef<ScrollView>(null);
   const commentInputRef = React.useRef<TextInput>(null);
@@ -117,6 +119,23 @@ export default function IssueDetailsScreen() {
           <Text style={{ marginTop: 12, fontSize: 16, color: colors.textTitle, fontWeight: 'bold' }}>Error al cargar el reporte</Text>
           <Text style={{ marginTop: 4, textAlign: 'center', color: colors.textSub }}>No pudimos encontrar la información solicitada.</Text>
           <TouchableOpacity onPress={() => router.back()} style={[styles.commentBtn, { width: '100%', marginTop: 20, marginLeft: 0 }]}>
+            <Text style={styles.commentBtnText}>Regresar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (issue.is_hidden && user?.role_id !== 1 && user?.role_id !== 2) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+          <Ionicons name="eye-off-outline" size={80} color={colors.textLight} style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 20, color: colors.textTitle, fontWeight: 'bold', marginBottom: 8 }}>Reporte Archivado</Text>
+          <Text style={{ textAlign: 'center', color: colors.textSub, fontSize: 15, lineHeight: 22 }}>
+            Este reporte ha sido archivado por un administrador y ya no está disponible para el público.
+          </Text>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.commentBtn, { width: '100%', marginTop: 32, marginLeft: 0 }]}>
             <Text style={styles.commentBtnText}>Regresar</Text>
           </TouchableOpacity>
         </View>
@@ -476,6 +495,34 @@ export default function IssueDetailsScreen() {
                 )}
               </View>
             )}
+
+            {/* Export PDF Button */}
+            <TouchableOpacity 
+              style={[styles.pdfButton, isGeneratingPDF && styles.pdfButtonDisabled]}
+              disabled={isGeneratingPDF}
+              onPress={async () => {
+                if (!issue) return;
+                setIsGeneratingPDF(true);
+                try {
+                  Alert.alert('Funcionalidad en pausa', 'La generación de PDF está temporalmente desactivada.');
+                  // await generateIssueDetailPDF(issue);
+                } catch (e) {
+                  Alert.alert('Error', 'No se pudo generar el PDF.');
+                } finally {
+                  setIsGeneratingPDF(false);
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              {isGeneratingPDF ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                  <Text style={styles.pdfButtonText}>Generar Reporte en PDF</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
             {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
@@ -999,6 +1046,27 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 6,
+  },
+  pdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 15,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  pdfButtonDisabled: {
+    opacity: 0.6,
+  },
+  pdfButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   archiveBtn: {
     backgroundColor: '#6B7280',

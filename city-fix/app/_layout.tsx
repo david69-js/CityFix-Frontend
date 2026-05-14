@@ -46,27 +46,26 @@ function RootLayoutNav() {
   }, []); // Only initialize once on mount
 
   useEffect(() => {
+    // If we're still loading the initial auth state, don't redirect
     if (isLoading) return;
 
     const isAuthRoute = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'create-account' || segments[0] === 'worker-registration' || segments[0] === 'forgot-password' || segments[0] === 'reset-password';
 
-    console.log('[RootLayout] Auth State Check:', {
-      token: !!token,
-      segment: segments[0],
-      isAuthRoute,
-      path: segments.join('/')
-    });
+    // Small delay to ensure state consistency during navigation transitions
+    const timeout = setTimeout(() => {
+      if (!token && !isAuthRoute) {
+        // Not logged in and trying to access a protected route -> Welcome
+        console.log('[RootLayout] Redirecting to /welcome (Not logged in)');
+        router.replace('/welcome');
+      } else if (token && isAuthRoute) {
+        // Logged in but still on an auth screen -> Home
+        console.log('[RootLayout] Redirecting to / (Logged in)');
+        router.replace('/');
+      }
+    }, 10);
 
-    if (!token && !isAuthRoute) {
-      // Not logged in -> Redirect to welcome
-      console.log('[RootLayout] Redirecting to /welcome');
-      router.replace('/welcome');
-    } else if (token && isAuthRoute) {
-      // Logged in but trying to access auth screens -> Redirect to home
-      console.log('[RootLayout] Redirecting to /');
-      router.replace('/');
-    }
-  }, [token, isLoading, segments.join(',')]);
+    return () => clearTimeout(timeout);
+  }, [token, isLoading, segments[0]]);
 
   if (isLoading) {
     return (

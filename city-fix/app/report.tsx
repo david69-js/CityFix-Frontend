@@ -11,6 +11,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { useReverseGeocodeMutation } from '../src/hooks/useMaps';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
+import { getCategoryIcon } from '../src/utils/helpers';
 
 const { width } = Dimensions.get('window');
 
@@ -346,7 +347,7 @@ export default function ReportIssueScreen() {
               <Text style={styles.label}>Agregar foto <Text style={{fontWeight: '400', color: colors.textLight}}>(Opcional, máx 5MB)</Text></Text>
               <TouchableOpacity style={styles.photoUploadArea} onPress={handlePickImage} activeOpacity={0.8}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
+                  <Image key={imageUri} source={{ uri: imageUri }} style={styles.uploadedImage} />
                 ) : (
                   <>
                     <Ionicons name="camera-outline" size={32} color={colors.textLight} />

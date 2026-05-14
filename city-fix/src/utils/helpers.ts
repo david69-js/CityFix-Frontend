@@ -28,17 +28,22 @@ export const getStatusIcon = (name: string) => {
  * Ensures image URLs are absolute and use the correct host.
  */
 export const fixImageUrl = (url: string | null | undefined) => {
-  if (!url) return null;
+  // Android Emulator fix: redirect localhost/127.0.0.1 to host machine (10.0.2.2)
+  if (Platform.OS === 'android') {
+    if (url.includes('localhost')) {
+      url = url.replace('localhost', '10.0.2.2');
+    } else if (url.includes('127.0.0.1')) {
+      url = url.replace('127.0.0.1', '10.0.2.2');
+    }
+  }
+
   if (url.startsWith('http')) return url;
   
   // Extract base URL from API URL (remove /api suffix if present)
   let BASE_URL = process.env.EXPO_PUBLIC_API_URL 
     ? process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '') 
-    : 'http://127.0.0.1:8000';
-    
-  if (Platform.OS === 'android' && BASE_URL.includes('localhost')) {
-    BASE_URL = BASE_URL.replace('localhost', '10.0.2.2');
-  }
+    : 'http://10.0.2.2:8000'; // Default to Android host IP if missing
+
   
   // Handle storage paths from Laravel
   if (url.startsWith('storage/')) {

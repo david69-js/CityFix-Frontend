@@ -10,7 +10,7 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = getStyles(colors);
-  const { data: notifications, isLoading, refetch, isRefetching } = useNotifications();
+  const { data: notifications, isLoading, error, refetch, isRefetching } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
 
   const getIcon = (type: string) => {
@@ -55,6 +55,15 @@ export default function NotificationsScreen() {
       >
         {isLoading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="cloud-offline-outline" size={60} color={colors.danger} />
+            <Text style={styles.emptyTitle}>Error de conexión</Text>
+            <Text style={styles.emptyDesc}>No pudimos cargar tus notificaciones. Por favor, verifica tu sesión o intenta más tarde.</Text>
+            <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 20, padding: 10, backgroundColor: colors.primary, borderRadius: 8 }}>
+              <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : notifications && notifications.length > 0 ? (
           notifications.map((notification) => {
             const icon = getIcon(notification.type);
