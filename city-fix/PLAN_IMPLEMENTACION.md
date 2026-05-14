@@ -64,7 +64,7 @@ export const useIssuesFeed = (perPage = 15, filters?: {
 };
 ```
 
-### 1.2 Agregar barra de búsqueda en el Dashboard
+### 1.2 Agregar barra de búsqueda en el Dashboard (✅ Completado)
 
 **Archivo**: `app/index.tsx`
 
@@ -156,7 +156,7 @@ const { data: users } = useUsers();
 // Modal de selección de usuario (usando Alert o modal personalizado)
 ```
 
-### 1.4 Crear hook para obtener usuarios
+### 1.4 Crear hook para obtener usuarios (✅ Completado)
 
 **Archivo**: `src/hooks/useAuth.ts`
 
@@ -164,9 +164,9 @@ Ya existe `useUsers()` que devuelve todos los usuarios. No requiere cambios.
 
 ---
 
-## 📦 Fase 2 — Archivar Reportes
+## 📦 Fase 2 — Archivar Reportes (✅ Completado)
 
-### 2.1 Agregar botón "Archivar" en issue-details
+### 2.1 Agregar botón "Archivar" en issue-details (✅ Completado)
 
 **Archivo**: `app/issue-details.tsx`
 
@@ -249,7 +249,7 @@ archiveBtnText: {
 },
 ```
 
-### 2.2 Agregar vista de reportes archivados en admin
+### 2.2 Agregar vista de reportes archivados en admin (✅ Completado)
 
 **Archivo**: `app/admin.tsx`
 
@@ -257,9 +257,9 @@ archiveBtnText: {
 
 ---
 
-## 👥 Fase 3 — Gestión de Usuarios para Admin
+## 👥 Fase 3 — Gestión de Usuarios para Admin (✅ Completado)
 
-### 3.1 Nueva sección "Usuarios" en Admin
+### 3.1 Nueva sección "Usuarios" en Admin (✅ Completado)
 
 **Archivo**: `app/admin.tsx`
 
@@ -381,7 +381,7 @@ const fetchUsers = async () => {
 )}
 ```
 
-### 3.2 Funciones auxiliares para usuarios
+### 3.2 Funciones auxiliares para usuarios (✅ Completado)
 
 ```tsx
 const handleEditUser = (user: any) => {
@@ -429,7 +429,7 @@ const handleToggleUserActive = async (user: any) => {
 };
 ```
 
-### 3.3 Estilos adicionales para admin.tsx
+### 3.3 Estilos adicionales para admin.tsx (✅ Completado)
 
 Agregar al StyleSheet:
 
@@ -510,9 +510,9 @@ userActionBtn: {
 
 ---
 
-## 🔘 Fase 4 — Filtro por Estado al Clickear Stats
+## 🔘 Fase 4 — Filtro por Estado al Clickear Stats (✅ Completado)
 
-### 4.1 Hacer clickeables las cards de estadísticas
+### 4.1 Hacer clickeables las cards de estadísticas(✅ Completado)
 
 **Archivo**: `app/index.tsx`
 
@@ -580,9 +580,9 @@ statCardActive: {
 
 ---
 
-## 🧹 Fase 5 — Refactor (Deuda Técnica)
+## 🧹 Fase 5 — Refactor (Deuda Técnica) (✅ Completado)
 
-### 5.1 Componente BottomTabBar reutilizable
+### 5.1 Componente BottomTabBar reutilizable (✅ Completado)
 
 **Crear archivo**: `src/components/BottomTabBar.tsx`
 
@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
 
 Luego importar `BottomTabBar` en cada pantalla y reemplazar el código duplicado.
 
-### 5.2 Mover helpers a utils
+### 5.2 Mover helpers a utils (✅ Completado)
 
 **Crear archivo**: `src/utils/helpers.ts`
 
@@ -750,7 +750,7 @@ export const COLORS = {
 
 Luego importar en todos los archivos que usan estas funciones y eliminar las copias locales.
 
-### 5.3 Limpiar console.logs
+### 5.3 Limpiar console.logs 
 
 Buscar y eliminar todos los `console.log` de debug:
 
