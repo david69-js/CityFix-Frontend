@@ -54,6 +54,8 @@ export type ThemeColors = {
   unreadBg: string;
   adminHighlight: string;
   workerHighlight: string;
+  divider: string;
+  error: string;
 };
 
 export const lightColors: ThemeColors = {
@@ -110,12 +112,14 @@ export const lightColors: ThemeColors = {
   blueDot: '#4d686f',
 
   unreadBg: '#EBF5FB',
-  adminHighlight: '#4d686f', // Teal for Admin
-  workerHighlight: '#6d756a', // Sage for Worker
+  adminHighlight: '#4d686f',
+  workerHighlight: '#6d756a',
+  divider: '#E5E7EB',
+  error: '#C0392B',
 };
 
 export const darkColors: ThemeColors = {
-  primary: '#364461', // Back to Navy (less overwhelming for large areas)
+  primary: '#364461',
   background: '#151C2C', 
   surface: '#1E2738', 
   textTitle: '#FFFFFF', 
@@ -157,7 +161,7 @@ export const darkColors: ThemeColors = {
   tagLightingBg: '#bfa374',
   tagWaterBg: '#4d686f',
 
-  workerGreen: '#6d756a', // Sage as requested for assignments
+  workerGreen: '#6d756a',
 
   statusProgressBg: '#1B263B',
   statusProgressFg: '#4d686f',
@@ -168,6 +172,8 @@ export const darkColors: ThemeColors = {
   blueDot: '#4d686f',
 
   unreadBg: '#1B263B',
-  adminHighlight: '#4d686f', // Teal for Admin
-  workerHighlight: '#6d756a', // Sage for Worker
+  adminHighlight: '#4d686f',
+  workerHighlight: '#6d756a',
+  divider: '#364461',
+  error: '#EC7063',
 };

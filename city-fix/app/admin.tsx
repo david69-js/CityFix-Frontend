@@ -378,6 +378,13 @@ export default function AdminScreen() {
         <SafeAreaView>
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Administración</Text>
+            <TouchableOpacity 
+              style={styles.reportsButton} 
+              onPress={() => router.push('/admin-reports')}
+            >
+              <Ionicons name="bar-chart" size={20} color="#FFF" />
+              <Text style={styles.reportsButtonText}>Reportes</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -395,6 +402,7 @@ export default function AdminScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Ej: Baches"
+                placeholderTextColor={colors.textLight}
                 value={categoryName}
                 onChangeText={setCategoryName}
               />
@@ -438,11 +446,11 @@ export default function AdminScreen() {
           {/* Create User */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Crear Usuario</Text>
-            <TextInput style={styles.input} placeholder="Nombre" value={userFirstName} onChangeText={setUserFirstName} />
-            <TextInput style={styles.input} placeholder="Apellido" value={userLastName} onChangeText={setUserLastName} />
-            <TextInput style={styles.input} placeholder="Correo electrónico" value={userEmail} onChangeText={setUserEmail} keyboardType="email-address" />
-            <TextInput style={styles.input} placeholder="Contraseña" value={userPassword} onChangeText={setUserPassword} secureTextEntry />
-            <TextInput style={styles.input} placeholder="Teléfono" value={userPhone} onChangeText={setUserPhone} keyboardType="phone-pad" />
+            <TextInput style={styles.input} placeholder="Nombre" placeholderTextColor={colors.textLight} value={userFirstName} onChangeText={setUserFirstName} />
+            <TextInput style={styles.input} placeholder="Apellido" placeholderTextColor={colors.textLight} value={userLastName} onChangeText={setUserLastName} />
+            <TextInput style={styles.input} placeholder="Correo electrónico" placeholderTextColor={colors.textLight} value={userEmail} onChangeText={setUserEmail} keyboardType="email-address" />
+            <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor={colors.textLight} value={userPassword} onChangeText={setUserPassword} secureTextEntry />
+            <TextInput style={styles.input} placeholder="Teléfono" placeholderTextColor={colors.textLight} value={userPhone} onChangeText={setUserPhone} keyboardType="phone-pad" />
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Rol de Usuario <Text style={{color: colors.adminHighlight}}>*</Text></Text>
@@ -470,7 +478,7 @@ export default function AdminScreen() {
           {/* Update User */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Actualizar Usuario / Rol</Text>
-            <TextInput style={styles.input} placeholder="ID del Usuario" value={updateUserId} onChangeText={setUpdateUserId} keyboardType="numeric" />
+            <TextInput style={styles.input} placeholder="ID del Usuario" placeholderTextColor={colors.textLight} value={updateUserId} onChangeText={setUpdateUserId} keyboardType="numeric" />
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nuevo Rol (Opcional)</Text>
@@ -496,7 +504,7 @@ export default function AdminScreen() {
                 </View>
               )}
             </View>
-            <TextInput style={styles.input} placeholder="Actualizar Teléfono" value={updateUserPhone} onChangeText={setUpdateUserPhone} keyboardType="phone-pad" />
+            <TextInput style={styles.input} placeholder="Actualizar Teléfono" placeholderTextColor={colors.textLight} value={updateUserPhone} onChangeText={setUpdateUserPhone} keyboardType="phone-pad" />
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Foto de Perfil (Avatar)</Text>
@@ -522,18 +530,18 @@ export default function AdminScreen() {
             <Text style={styles.sectionTitle}>Gestionar Estados de Reportes</Text>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nombre del Estado (Ej: Pendiente, En Proceso)</Text>
-              <TextInput style={styles.input} placeholder="Nombre" value={statusName} onChangeText={setStatusName} />
+              <TextInput style={styles.input} placeholder="Nombre" placeholderTextColor={colors.textLight} value={statusName} onChangeText={setStatusName} />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Color Hexadecimal</Text>
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="#RRGGBB" value={statusColor} onChangeText={setStatusColor} />
+                <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="#RRGGBB" placeholderTextColor={colors.textLight} value={statusColor} onChangeText={setStatusColor} />
                 <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: statusColor || '#EEE' }} />
               </View>
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Orden de Clasificación</Text>
-              <TextInput style={styles.input} placeholder="1" value={statusOrder} onChangeText={setStatusOrder} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="1" placeholderTextColor={colors.textLight} value={statusOrder} onChangeText={setStatusOrder} keyboardType="numeric" />
             </View>
             <TouchableOpacity style={styles.adminButton} onPress={handleCreateStatus} disabled={isCreatingStatus}>
               <Text style={styles.adminButtonText}>{isCreatingStatus ? 'Guardando...' : 'Crear Estado'}</Text>
@@ -543,9 +551,9 @@ export default function AdminScreen() {
           {/* Create Invitation Code */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Generar Código de Invitación</Text>
-            <TextInput style={styles.input} placeholder="Ej: CF-XYZ123" value={invCode} onChangeText={setInvCode} />
-            <TextInput style={styles.input} placeholder="Usos máximos (Ej: 10)" value={invMaxUses} onChangeText={setInvMaxUses} keyboardType="numeric" />
-            <TextInput style={styles.input} placeholder="Expira en (YYYY-MM-DD HH:mm:ss)" value={invExpires} onChangeText={setInvExpires} />
+            <TextInput style={styles.input} placeholder="Ej: CF-XYZ123" placeholderTextColor={colors.textLight} value={invCode} onChangeText={setInvCode} />
+            <TextInput style={styles.input} placeholder="Usos máximos (Ej: 10)" placeholderTextColor={colors.textLight} value={invMaxUses} onChangeText={setInvMaxUses} keyboardType="numeric" />
+            <TextInput style={styles.input} placeholder="Expira en (YYYY-MM-DD HH:mm:ss)" placeholderTextColor={colors.textLight} value={invExpires} onChangeText={setInvExpires} />
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Rol para este código</Text>
@@ -585,6 +593,7 @@ export default function AdminScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Buscar por nombre o email..."
+                  placeholderTextColor={colors.textLight}
                   value={userSearch}
                   onChangeText={setUserSearch}
                 />
@@ -595,7 +604,7 @@ export default function AdminScreen() {
                   ).map((u: any) => {
                     const isArchived = u.is_active === false || Number(u.is_active) === 0;
                     return (
-                      <View key={u.id} style={[styles.userRow, isArchived && { backgroundColor: '#F9FAFB', opacity: 0.7 }]}>
+                      <View key={u.id} style={[styles.userRow, isArchived && { backgroundColor: colors.border + '40', opacity: 0.7 }]}>
                         <View style={styles.userInfo}>
                           <Text style={[styles.userName, isArchived && { color: colors.textLight }]}>{u.first_name} {u.last_name}</Text>
                           <Text style={styles.userEmail}>{u.email}</Text>
@@ -649,6 +658,7 @@ export default function AdminScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Buscar reportes archivados..."
+                  placeholderTextColor={colors.textLight}
                   value={archivedSearch}
                   onChangeText={setArchivedSearch}
                 />
@@ -729,6 +739,7 @@ function CampaignSection() {
       <TextInput
         style={styles.input}
         placeholder="Título del aviso"
+        placeholderTextColor={colors.textLight}
         value={title}
         onChangeText={setTitle}
       />
@@ -736,6 +747,7 @@ function CampaignSection() {
       <TextInput
         style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
         placeholder="Mensaje de la campaña..."
+        placeholderTextColor={colors.textLight}
         value={message}
         onChangeText={setMessage}
         multiline
@@ -758,8 +770,10 @@ function CampaignSection() {
 const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   headerArea: { backgroundColor: colors.adminHighlight, paddingBottom: 20 },
-  headerTop: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, marginTop: 20 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 20 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
+  reportsButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6 },
+  reportsButtonText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   scrollContent: { paddingBottom: 20 },
   contentPadding: { paddingHorizontal: 20, paddingTop: 20 },
   card: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8 },
@@ -772,7 +786,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surface,
     overflow: 'hidden'
   },
   avatarPreview: {
@@ -791,7 +805,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: colors.textTitle, marginBottom: 16 },
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 13, color: colors.textSub, marginBottom: 6, fontWeight: '500' },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.textTitle, backgroundColor: '#F9FAFB', marginBottom: 12 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.textTitle, backgroundColor: colors.surface, marginBottom: 12 },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   iconCard: { width: 48, height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
   iconCardSelected: { borderColor: colors.adminHighlight, backgroundColor: colors.adminHighlight + '15' },

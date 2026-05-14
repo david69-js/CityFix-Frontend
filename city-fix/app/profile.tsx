@@ -10,6 +10,7 @@ import { formatDate } from '../src/utils/date';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
 import { fixImageUrl, getCategoryColor } from '../src/utils/helpers';
+import { STATUS_IDS } from '../src/utils/helpers';
 // import { generateSummaryPDF } from '../src/utils/pdfGenerator';
 
 const { width } = Dimensions.get('window');
@@ -46,8 +47,8 @@ export default function ProfileScreen() {
   };
 
   const launchPicker = async (isCamera: boolean) => {
-    const permission = isCamera 
-      ? await ImagePicker.requestCameraPermissionsAsync() 
+    const permission = isCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permission.status !== 'granted') {
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
     }
 
     try {
-      const result = isCamera 
+      const result = isCamera
         ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 })
         : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
 
@@ -96,16 +97,16 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.profileInfo}>
-              <TouchableOpacity 
-                onPress={() => router.push('/edit-profile')} 
-                style={styles.avatarBorder} 
+              <TouchableOpacity
+                onPress={() => router.push('/edit-profile')}
+                style={styles.avatarBorder}
                 activeOpacity={0.9}
               >
                 <View style={styles.avatar}>
                   {user?.avatar ? (
-                    <Image 
-                      source={{ uri: `${fixImageUrl(user.avatar)}?t=${new Date().getTime()}` }} 
-                      style={styles.avatarImage} 
+                    <Image
+                      source={{ uri: fixImageUrl(user.avatar) + `?t=${new Date().getTime()}` }}
+                      style={styles.avatarImage}
                     />
                   ) : (
                     <Ionicons name="person-outline" size={60} color={colors.primary} />
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
                   <Ionicons name="settings" size={16} color="#FFF" />
                 </View>
               </TouchableOpacity>
-              
+
               <Text style={styles.userName}>{user ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Usuario'}</Text>
               <Text style={styles.userEmail}>{user?.email || ''}</Text>
             </View>
@@ -239,49 +240,7 @@ export default function ProfileScreen() {
           </View>
 
 
-          {/* Admin / Worker Actions */}
-          {(user?.role_id === 1 || user?.role_id === 2) && (
-            <>
-              <Text style={styles.sectionTitle}>Panel de Control</Text>
-              <View style={styles.card}>
-                <Text style={{ fontSize: 14, color: colors.textSub, marginBottom: 12 }}>
-                  Generar resumen de todos los reportes de la ciudad en PDF.
-                </Text>
-                
-                <TouchableOpacity
-                  style={[styles.pdfSummaryBtn, isGeneratingSummary && styles.pdfSummaryBtnDisabled]}
-                  disabled={isGeneratingSummary}
-                  onPress={async () => {
-                    setIsGeneratingSummary(true);
-                    try {
-                      Alert.alert('Funcionalidad en pausa', 'La generación de PDF está temporalmente desactivada hasta que se complete la compilación nativa.');
-                      /*
-                      // Fetch all reports (up to 100 for summary)
-                      const response = await apiClient.get('/issues/feed?per_page=100');
-                      const issuesList = response.data?.data || [];
-                      // Ensure we don't include hidden if needed, or include them if admin
-                      await generateSummaryPDF(issuesList, 'Todos los Estados');
-                      */
-                    } catch (error) {
-                      Alert.alert('Error', 'No se pudo generar el resumen.');
-                    } finally {
-                      setIsGeneratingSummary(false);
-                    }
-                  }}
-                  activeOpacity={0.8}
-                >
-                  {isGeneratingSummary ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="document-text" size={18} color="#FFF" />
-                      <Text style={styles.pdfSummaryBtnText}>Exportar Resumen (PDF)</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+          {/* Admin / Worker Actions - PDF Summary Hidden by user request */}
 
           {/* My Reports */}
           <Text style={styles.sectionTitle}>Mis Reportes</Text>
@@ -299,10 +258,10 @@ export default function ProfileScreen() {
                 onPress={() => router.push(`/issue-details?id=${issue.id}`)}
                 activeOpacity={0.7}
               >
-                {issue.images && issue.images.length > 0 ? (
-                  <Image 
-                    source={{ uri: fixImageUrl(issue.images[0].full_url) }} 
-                    style={styles.issueImage} 
+                {issue.images && issue.images.length > 0 && issue.images[0] ? (
+                  <Image
+                    source={{ uri: fixImageUrl(issue.images[0].full_url) || '' }}
+                    style={styles.issueImage}
                   />
                 ) : (
                   <View style={styles.issueImagePlaceholder}>
@@ -684,29 +643,29 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   emptyReportsText: { fontSize: 14, color: colors.textSub, marginBottom: 12 },
   reportFirstLink: { color: colors.primary, fontWeight: 'bold', fontSize: 14 },
-  logoutButton: { 
-    flexDirection: 'row', 
-    backgroundColor: colors.surface, 
-    paddingVertical: 14, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginTop: 10, 
-    borderWidth: 1, 
+  logoutButton: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    borderWidth: 1,
     borderColor: colors.danger + '40', // 25% opacity
   },
-  logoutText: { 
-    color: colors.danger, 
-    fontWeight: 'bold', 
-    fontSize: 15, 
-    marginLeft: 8 
+  logoutText: {
+    color: colors.danger,
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginLeft: 8
   },
   issueCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: colors.border },
-  issueImage: { 
-    width: 80, 
-    height: 80, 
-    borderRadius: 8, 
-    marginRight: 12 
+  issueImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12
   },
   issueImagePlaceholder: {
     width: 80,
@@ -729,3 +688,5 @@ const getStyles = (colors: any) => StyleSheet.create({
   metric: { flexDirection: 'row', alignItems: 'center', marginLeft: 12 },
   metricText: { fontSize: 12, color: colors.textLight, marginLeft: 4 },
 });
+
+

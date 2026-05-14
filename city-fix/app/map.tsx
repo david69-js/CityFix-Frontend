@@ -96,13 +96,15 @@ export default function MapScreen() {
 
   // Fit all markers
   const handleFitAll = () => {
-    if (filteredReports.length > 0 && mapRef.current) {
-      const coords = filteredReports
+    if (allReports.length > 0 && mapRef.current) {
+      // Use allReports to encompass everything regardless of the active filter
+      const coords = allReports
         .filter(r => r.latitude && r.longitude)
-        .map(r => ({ latitude: r.latitude, longitude: r.longitude }));
+        .map(r => ({ latitude: Number(r.latitude), longitude: Number(r.longitude) }));
+        
       if (coords.length > 0) {
         mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 60, bottom: 80, left: 60 },
+          edgePadding: { top: 100, right: 70, bottom: 100, left: 70 },
           animated: true,
         });
       }

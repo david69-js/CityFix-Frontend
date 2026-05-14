@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import apiClient, { setAuthToken } from '../api/axios';
 
@@ -24,20 +25,29 @@ interface AuthState {
   initializeAuth: () => Promise<void>;
 }
 
+// Try to recover token immediately from memory storage (if already loaded)
+// This prevents flashes of unauthenticated state during hot reloads
+const initialToken = Platform.OS === 'web' 
+  ? (typeof localStorage !== 'undefined' ? localStorage.getItem('userToken') : null)
+  : null; // On native, we must wait for initializeAuth (SecureStore is async)
+
 export const useAuthStore = create<AuthState>((set: any) => ({
-  token: null,
+  token: initialToken,
   user: null,
   isLoading: true,
 
-  setToken: async (token: string) => {
+  setToken: async (token: string | null) => {
     if (!token) {
-      console.warn('[AuthStore] setToken called with empty token');
-      return;
+      console.log('🚨 [AuthStore] TOKEN BEING SET TO NULL! Trace:', new Error().stack);
     }
-    console.log('[AuthStore] Updating token in state:', token.substring(0, 10) + '...');
+    console.log('[AuthStore] Updating token in state:', token ? (token.substring(0, 10) + '...') : 'NULL');
     set({ token });
     setAuthToken(token);
-    await setItemAsync('userToken', token);
+    if (token) {
+      await setItemAsync('userToken', token);
+    } else {
+      await deleteItemAsync('userToken');
+    }
   },
 
   setUser: (user: User) => {
@@ -52,8 +62,10 @@ export const useAuthStore = create<AuthState>((set: any) => ({
 
   initializeAuth: async () => {
     try {
+      console.log('[AuthStore] Initializing auth state...');
       set({ isLoading: true });
       const token = await getItemAsync('userToken');
+      console.log('[AuthStore] Token from storage:', token ? 'Exists' : 'Null');
       if (token) {
         set({ token });
         setAuthToken(token);

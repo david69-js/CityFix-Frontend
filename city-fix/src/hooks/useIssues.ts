@@ -2,6 +2,30 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { Issue, PaginatedResponse, IssueComment } from '../types/api';
 import { STATUS_IDS } from '../utils/helpers';
+import { useAuthStore } from '../store/authStore';
+import { getItemAsync, setItemAsync } from '../utils/storage';
+
+// --- Local Vote Cache Strategy ---
+// Since the backend sometimes drops the 'has_voted' state, we maintain a local record
+const getLocalVotes = async (): Promise<Record<string, boolean>> => {
+  try {
+    const data = await getItemAsync('local_votes');
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveLocalVote = async (issueId: string | number, hasVoted: boolean) => {
+  try {
+    const votes = await getLocalVotes();
+    votes[String(issueId)] = hasVoted;
+    await setItemAsync('local_votes', JSON.stringify(votes));
+  } catch (e) {
+    console.warn('Failed to save local vote', e);
+  }
+};
+// ---------------------------------
 
 export interface CreateIssuePayload {
   category_id: number;
@@ -60,16 +84,38 @@ export const useIssuesFeed = (perPage = 15, filters?: {
   status_id?: number;
   category_id?: number;
 }) => {
+  const { user } = useAuthStore();
+  
   return useQuery({
-    queryKey: ['issues', 'feed', perPage, filters],
+    queryKey: ['issues', 'feed', perPage, filters, user?.id],
     queryFn: async () => {
       const params: any = { per_page: perPage };
       if (filters?.search) params.search = filters.search;
       if (filters?.user_id) params.user_id = filters.user_id;
       if (filters?.status_id) params.status_id = filters.status_id;
       if (filters?.category_id) params.category_id = filters.category_id;
+      
+      // Enviamos el ID del usuario actual para que el backend marque qué issues ha votado
+      if (user?.id) params.voter_id = user.id;
 
       const response = await apiClient.get<PaginatedResponse<Issue>>('/issues/feed', { params });
+      
+      // Inject local votes if backend missed them
+      const localVotes = await getLocalVotes();
+      if (response.data && response.data.data) {
+        response.data.data = response.data.data.map(issue => {
+          const localVote = localVotes[String(issue.id)];
+          if (localVote !== undefined && issue.has_voted === undefined) {
+            return { ...issue, has_voted: localVote };
+          }
+          // Si el backend sí lo mandó, actualizamos nuestro caché local para estar sincronizados
+          if (issue.has_voted !== undefined) {
+            saveLocalVote(issue.id, !!issue.has_voted);
+          }
+          return issue;
+        });
+      }
+      
       return response.data;
     },
   });
@@ -112,27 +158,62 @@ export const useMyIssues = (userId: number | undefined) => {
 };
 
 export const useIssueDetails = (id: number | string | null, userId?: number) => {
+  const queryClient = useQueryClient();
+  
   return useQuery({
     queryKey: ['issues', 'details', id ? String(id) : null, userId],
     queryFn: async () => {
       if (!id) return null;
-      const response = await apiClient.get<Issue>(`/issues/${id}`);
-      const issue = response.data;
+      // Pasamos user_id y voter_id como parámetro para que el backend sepa si este usuario ya votó
+      const response = await apiClient.get<any>(`/issues/${id}`, {
+        params: userId ? { user_id: userId, voter_id: userId } : {}
+      });
+      
+      // Manejar posibles respuestas envueltas en { data: ... }
+      let issueData = response.data;
+      if (issueData && issueData.data && !issueData.title) {
+        issueData = issueData.data;
+      }
+      
+      // LOG para depuración: Ver la estructura real que llega
+      console.log(`[DEBUG] useIssueDetails(${id}) - Keys:`, Object.keys(issueData || {}));
+      
+      // ESTRATEGIA DE FALLBACK: Si el detalle no trae votos, buscamos en el caché del feed
+      // ya que sabemos que el feed sí suele traer estos contadores.
+      let fallbackUpvotes = undefined;
+      let fallbackHasVoted = undefined;
 
-      // Workaround: Fetch upvotes to get count and check if current user voted
-      try {
-        const upvotesRes = await apiClient.get<any[]>('/upvotes');
-        const upvotes = upvotesRes.data;
-        const issueUpvotes = upvotes.filter((v: any) => v.issue_id === issue.id);
-        
-        issue.upvotes_count = issueUpvotes.length;
-        issue.has_voted = userId ? issueUpvotes.some((v: any) => v.user_id === userId) : false;
-      } catch (e) {
-        console.log("Could not fetch upvotes workaround", e);
-        if (issue.upvotes_count === undefined) issue.upvotes_count = 0;
-        issue.has_voted = false;
+      if (issueData.upvotes_count === undefined) {
+        const feedQueries = queryClient.getQueriesData<PaginatedResponse<Issue>>({ queryKey: ['issues', 'feed'] });
+        for (const [_, feed] of feedQueries) {
+          const found = feed?.data?.find(i => String(i.id) === String(id));
+          if (found && found.upvotes_count !== undefined) {
+            fallbackUpvotes = found.upvotes_count;
+            fallbackHasVoted = found.has_voted;
+            console.log(`[DEBUG] Fallback encontrado en feed: upvotes=${fallbackUpvotes}, voted=${fallbackHasVoted}`);
+            break;
+          }
+        }
       }
 
+      // Último recurso: revisar caché local de votos
+      const localVotes = await getLocalVotes();
+      const localVote = localVotes[String(id)];
+
+      // Asegurar que has_voted y upvotes_count existan con nombres alternativos o fallbacks
+      const issue: Issue = {
+        ...issueData,
+        has_voted: !!(issueData.has_voted ?? issueData.voted ?? fallbackHasVoted ?? localVote ?? false),
+        upvotes_count: issueData.upvotes_count ?? issueData.total_upvotes ?? fallbackUpvotes ?? 0
+      };
+      
+      // Sincronizar caché local si el backend sí envió el dato
+      if (issueData.has_voted !== undefined || issueData.voted !== undefined) {
+        saveLocalVote(id, issue.has_voted);
+      }
+      
+      console.log(`[DEBUG] useIssueDetails(${id}) - Final state -> has_voted:`, issue.has_voted, 'upvotes:', issue.upvotes_count);
+      
       return issue;
     },
     enabled: !!id,
@@ -187,17 +268,98 @@ export const useAddComment = () => {
 
 export const useToggleUpvote = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (issueId: number) => {
-      const response = await apiClient.post(`/issues/${issueId}/toggle-upvote`);
+    mutationFn: async (issueId: number | string) => {
+      console.log(`[DEBUG] Iniciando toggle-upvote para issue ${issueId}`);
+      // Enviamos el ID del usuario en el body para que el backend sepa quién vota
+      const response = await apiClient.post(`/issues/${issueId}/toggle-upvote`, {
+        voter_id: user?.id,
+        user_id: user?.id // Enviamos ambos por si acaso
+      });
       return response.data;
     },
-    onSuccess: (_, issueId) => {
+    // Optimistic update for better UX
+    onMutate: async (issueId) => {
       const idStr = String(issueId);
-      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
-      queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
-      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      const userId = user?.id;
+      
+      // Cancelar cualquier refetch en curso
+      await queryClient.cancelQueries({ queryKey: ['issues', 'details', idStr] });
+      await queryClient.cancelQueries({ queryKey: ['issues', 'feed'] });
+
+      // Guardar el estado anterior buscando la query exacta con userId
+      const detailsQueryKey = ['issues', 'details', idStr, userId];
+      const previousIssue = queryClient.getQueryData<Issue>(detailsQueryKey);
+
+      const newHasVoted = previousIssue ? !previousIssue.has_voted : true;
+      
+      // Actualizar el caché local permanentemente
+      saveLocalVote(issueId, newHasVoted);
+
+      console.log(`[DEBUG] onMutate - Estado previo has_voted:`, previousIssue?.has_voted, `-> Nuevo:`, newHasVoted);
+
+      // Actualizar optimísticamente el caché de detalles
+      if (previousIssue) {
+        queryClient.setQueryData<Issue>(detailsQueryKey, {
+          ...previousIssue,
+          has_voted: newHasVoted,
+          upvotes_count: (previousIssue.upvotes_count || 0) + (previousIssue.has_voted ? -1 : 1),
+        });
+      }
+
+      // También actualizar en el feed si aparece ahí
+      queryClient.setQueriesData<PaginatedResponse<Issue>>({ queryKey: ['issues', 'feed'] }, (old) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map(item => {
+            if (String(item.id) === idStr) {
+              const currentlyVoted = !!item.has_voted;
+              return {
+                ...item,
+                has_voted: !currentlyVoted,
+                upvotes_count: (item.upvotes_count || 0) + (currentlyVoted ? -1 : 1),
+              };
+            }
+            return item;
+          })
+        };
+      });
+
+      return { previousIssue, detailsQueryKey };
+    },
+    onSuccess: (data, issueId, context) => {
+      console.log(`[DEBUG] toggle-upvote exitoso. Respuesta:`, data);
+      // Si el servidor devuelve el objeto issue actualizado, lo usamos directamente
+      if (data && (data.has_voted !== undefined || data.upvotes_count !== undefined)) {
+        if (context.detailsQueryKey) {
+          queryClient.setQueryData(context.detailsQueryKey, (old: any) => ({
+            ...old,
+            ...data,
+            has_voted: !!data.has_voted // Asegurar booleano
+          }));
+        }
+      }
+    },
+    onError: (err: any, issueId, context: any) => {
+      console.error(`[DEBUG] Error en toggle-upvote:`, err?.response?.data || err);
+      // Revertir al estado anterior si hay error
+      if (context?.previousIssue && context.detailsQueryKey) {
+        queryClient.setQueryData(context.detailsQueryKey, context.previousIssue);
+      }
+    },
+    onSettled: (data, error, issueId) => {
+      const idStr = String(issueId);
+      const userId = user?.id;
+      // Invalida para asegurar sincronización con el servidor
+      // Añadimos un pequeño delay para dar tiempo al backend si es necesario
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr, userId] });
+        queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+        queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
+      }, 500);
     },
   });
 };
@@ -258,9 +420,13 @@ export const useAssignWorker = () => {
 };
 
 export const useWorkers = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role_id === 1;
+
   return useQuery({
     queryKey: ['users', 'workers'],
     queryFn: async () => {
+      if (!isAdmin) return [];
       const response = await apiClient.get('/admin/users');
       let allUsers = [];
       
@@ -277,15 +443,12 @@ export const useWorkers = () => {
       const workers = allUsers.filter((u: any) => {
         const roleId = Number(u.role_id);
         const roleName = (u.role?.name || '').toLowerCase();
-        
-        // Log para ver qué roles estamos recibiendo
-        
         return roleId === 2 || roleName.includes('work') || roleName.includes('trabaj');
       });
 
-      console.log(`[DEBUG] useWorkers - Found ${workers.length} workers`);
       return workers;
     },
+    enabled: isAdmin,
   });
 };
 
@@ -304,9 +467,13 @@ export interface AdminIssuesFilters {
  * GET /api/admin/issues
  */
 export const useAdminIssues = (filters?: AdminIssuesFilters) => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role_id === 1;
+
   return useQuery({
     queryKey: ['admin', 'issues', filters],
     queryFn: async () => {
+      if (!isAdmin) return { data: [], total: 0 };
       const params: Record<string, any> = {};
       if (filters?.is_hidden !== undefined) params.is_hidden = filters.is_hidden ? 1 : 0;
       if (filters?.status_id) params.status_id = filters.status_id;
@@ -314,10 +481,10 @@ export const useAdminIssues = (filters?: AdminIssuesFilters) => {
       if (filters?.search) params.search = filters.search;
       params.per_page = filters?.per_page || 50;
 
-      // Importante: Usar /admin/issues para poder ver los reportes ocultos
       const response = await apiClient.get<PaginatedResponse<Issue>>('/admin/issues', { params });
       return response.data;
     },
+    enabled: isAdmin,
   });
 };
 

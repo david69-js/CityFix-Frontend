@@ -45,6 +45,11 @@ export default function NotificationsScreen() {
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textTitle,
         headerShadowVisible: false,
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={colors.textTitle} />
+          </TouchableOpacity>
+        ),
       }} />
 
       <ScrollView 

@@ -33,9 +33,7 @@ export const setAuthToken = (token: string | null) => {
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      // Use in-memory token if available, otherwise fallback to storage
       const token = authToken || await getItemAsync('userToken');
-      
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -44,7 +42,17 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error: any) => {
+  (error: any) => Promise.reject(error)
+);
+
+// Interceptor to catch and log response errors (DEBUG ONLY)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.log(`[AxiosError] ${error.config?.method?.toUpperCase()} ${error.config?.url} -> Status: ${error.response?.status}`);
+    if (error.response?.data) {
+      console.log(`[AxiosError] Data:`, JSON.stringify(error.response.data));
+    }
     return Promise.reject(error);
   }
 );

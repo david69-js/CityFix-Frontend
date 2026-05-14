@@ -73,7 +73,13 @@ export default function IssueDetailsScreen() {
 
   const handleToggleUpvote = () => {
     if (!issue) return;
-    toggleUpvoteMutation.mutate(issue.id);
+    toggleUpvoteMutation.mutate(issue.id, {
+      onError: (e: any) => {
+        console.error("Upvote error:", e?.response?.data || e);
+        const serverMsg = e?.response?.data?.message || e?.response?.data?.error || e?.message;
+        Alert.alert('Error al votar', serverMsg || 'No se pudo procesar tu voto. Verifique su conexión.');
+      }
+    });
   };
 
   const scrollToComment = () => {
@@ -326,6 +332,28 @@ export default function IssueDetailsScreen() {
                   <Text style={styles.infoValue}>{formatDate(issue.created_at)}</Text>
                 </View>
               </View>
+
+              <View style={styles.infoRow}>
+                <Ionicons name="person-outline" size={22} color={colors.textLight} style={styles.infoIcon} />
+                <View style={styles.infoTextContainer}>
+                  <Text style={styles.infoLabel}>Reportado por</Text>
+                  <Text style={styles.infoValue}>
+                    {issue.user ? `${issue.user.first_name} ${issue.user.last_name || ''}` : 'Ciudadano Anónimo'}
+                  </Text>
+                </View>
+              </View>
+
+              {issue.assigned_worker && (
+                <View style={[styles.infoRow, { marginBottom: 0 }]}>
+                  <Ionicons name="construct-outline" size={22} color={colors.workerGreen} style={styles.infoIcon} />
+                  <View style={styles.infoTextContainer}>
+                    <Text style={styles.infoLabel}>Trabajador Asignado</Text>
+                    <Text style={[styles.infoValue, { color: colors.workerGreen, fontWeight: '700' }]}>
+                      {issue.assigned_worker.first_name} {issue.assigned_worker.last_name}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Action Buttons */}
@@ -371,13 +399,12 @@ export default function IssueDetailsScreen() {
                     <View style={styles.commentHeader}>
                       <Image 
                         source={{ 
-                          uri: comment.user?.avatar 
-                            ? fixImageUrl(comment.user.avatar) 
-                            : `https://ui-avatars.com/api/?name=${comment.user?.first_name}+${comment.user?.last_name}&background=random&color=fff` 
+                          uri: (comment.user?.avatar ? fixImageUrl(comment.user.avatar) : null) || 
+                               `https://ui-avatars.com/api/?name=${comment.user?.first_name || 'U'}+${comment.user?.last_name || ''}&background=random&color=fff` 
                         }} 
                         style={styles.commentAvatar} 
                       />
-                      <View>
+                      <View style={{ flex: 1 }}>
                         <Text style={styles.commentUser}>{comment.user?.first_name} {comment.user?.last_name}</Text>
                         <Text style={styles.commentTime}>{formatDate(comment.created_at)}</Text>
                       </View>
@@ -496,33 +523,7 @@ export default function IssueDetailsScreen() {
               </View>
             )}
 
-            {/* Export PDF Button */}
-            <TouchableOpacity 
-              style={[styles.pdfButton, isGeneratingPDF && styles.pdfButtonDisabled]}
-              disabled={isGeneratingPDF}
-              onPress={async () => {
-                if (!issue) return;
-                setIsGeneratingPDF(true);
-                try {
-                  Alert.alert('Funcionalidad en pausa', 'La generación de PDF está temporalmente desactivada.');
-                  // await generateIssueDetailPDF(issue);
-                } catch (e) {
-                  Alert.alert('Error', 'No se pudo generar el PDF.');
-                } finally {
-                  setIsGeneratingPDF(false);
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              {isGeneratingPDF ? (
-                <ActivityIndicator color={colors.primary} size="small" />
-              ) : (
-                <>
-                  <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-                  <Text style={styles.pdfButtonText}>Generar Reporte en PDF</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            {/* Export PDF Button disabled by user request */}
 
             {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
@@ -1097,5 +1098,10 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 4,
     textAlign: 'center',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 16,
   },
 });

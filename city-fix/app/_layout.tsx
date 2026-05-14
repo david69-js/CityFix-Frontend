@@ -53,16 +53,15 @@ function RootLayoutNav() {
 
     // Small delay to ensure state consistency during navigation transitions
     const timeout = setTimeout(() => {
-      if (!token && !isAuthRoute) {
-        // Not logged in and trying to access a protected route -> Welcome
-        console.log('[RootLayout] Redirecting to /welcome (Not logged in)');
+      // Final check: if we are not loading AND there is truly no token
+      if (!isLoading && !token && !isAuthRoute) {
+        console.log('[RootLayout] Redirecting to /welcome (Confirmed: No Session)');
         router.replace('/welcome');
-      } else if (token && isAuthRoute) {
-        // Logged in but still on an auth screen -> Home
-        console.log('[RootLayout] Redirecting to / (Logged in)');
+      } else if (!isLoading && token && isAuthRoute) {
+        console.log('[RootLayout] Redirecting to / (Confirmed: Active Session)');
         router.replace('/');
       }
-    }, 10);
+    }, 100); // Increased safety margin
 
     return () => clearTimeout(timeout);
   }, [token, isLoading, segments[0]]);

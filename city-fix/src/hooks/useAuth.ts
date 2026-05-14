@@ -69,11 +69,12 @@ export const useLogin = () => {
       }
 
       // Fallback: If for some reason the user is missing but we have a token, fetch it
+      // Fallback: If for some reason the user is missing but we have a token, fetch it
       if (activeToken) {
-        // Temporarily assign token for the immediate next request
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
         try {
-          const userResp = await apiClient.get('/auth/me');
+          const userResp = await apiClient.get('/auth/me', {
+            headers: { Authorization: `Bearer ${activeToken}` }
+          });
           if (userResp.data?.user) {
             data.user = userResp.data.user;
           } else if (userResp.data) {
@@ -81,8 +82,6 @@ export const useLogin = () => {
           }
         } catch(e) {
           console.warn("Failed fetching user profile after login fallback");
-        } finally {
-          delete apiClient.defaults.headers.common['Authorization'];
         }
       }
       return data;
@@ -140,13 +139,12 @@ export const useRegister = () => {
       
       const activeToken = data.token || data.access_token;
       if (!data.user && activeToken) {
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`;
         try {
-          const userResp = await apiClient.get('/auth/me');
+          const userResp = await apiClient.get('/auth/me', {
+            headers: { Authorization: `Bearer ${activeToken}` }
+          });
           if (userResp.data) data.user = userResp.data;
-        } catch(e) {} finally {
-          delete apiClient.defaults.headers.common['Authorization'];
-        }
+        } catch(e) {}
       }
       return data;
     },
@@ -181,27 +179,24 @@ export const useResetPassword = () => {
 };
 
 export const useUsers = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role_id === 1;
+
   return useQuery({
     queryKey: ['users'],
     queryFn: async () => {
+      if (!isAdmin) return [];
       try {
-        const response = await apiClient.get('/users');
-        console.log('[DEBUG] GET /api/users SUCCESS. Status:', response.status);
-        
+        const response = await apiClient.get('/admin/users');
         if (Array.isArray(response.data)) return response.data;
         if (response.data && Array.isArray(response.data.data)) return response.data.data;
         if (response.data && Array.isArray(response.data.users)) return response.data.users;
-        
         return [];
       } catch (error: any) {
-        console.error('[DEBUG] GET /api/users FAILED:', {
-          status: error.response?.status,
-          message: error.message,
-          data: error.response?.data
-        });
         return [];
       }
     },
+    enabled: isAdmin,
   });
 };
 
