@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications, useMarkAsRead } from '../src/hooks/useNotifications';
@@ -17,12 +17,12 @@ export default function NotificationsScreen() {
     switch (type) {
       case 'update':
       case 'status_updated':
-        return { name: 'sync-circle-outline', color: '#3B82F6' };
+        return { name: 'sync-circle-outline', color: colors.primary };
       case 'comment':
       case 'issue_created':
-        return { name: 'chatbubble-ellipses-outline', color: '#10B981' };
+        return { name: 'chatbubble-ellipses-outline', color: colors.workerGreen };
       case 'assignment':
-        return { name: 'briefcase-outline', color: '#F59E0B' };
+        return { name: 'briefcase-outline', color: colors.orangeHero };
       default:
         return { name: 'notifications-outline', color: colors.textLight };
     }
@@ -45,30 +45,6 @@ export default function NotificationsScreen() {
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textTitle,
         headerShadowVisible: false,
-        headerLeft: () => (
-          <TouchableOpacity 
-            onPress={() => router.back()} 
-            style={{ 
-              marginLeft: -10, 
-              width: 50, 
-              height: 50, 
-              justifyContent: 'center', 
-              alignItems: 'center',
-            }}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          >
-            <Ionicons 
-              name="chevron-back" 
-              size={28} 
-              color={colors.textTitle} 
-              style={{ 
-                marginTop: -5, // Stronger lift
-                marginRight: 2,
-                alignSelf: 'center'
-              }} 
-            />
-          </TouchableOpacity>
-        ),
       }} />
 
       <ScrollView 

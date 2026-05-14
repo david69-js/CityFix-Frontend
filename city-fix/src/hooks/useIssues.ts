@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { Issue, PaginatedResponse, IssueComment } from '../types/api';
+import { STATUS_IDS } from '../utils/helpers';
 
 export interface CreateIssuePayload {
   category_id: number;
@@ -53,13 +54,46 @@ export const useCreateIssue = () => {
   });
 };
 
-export const useIssuesFeed = (perPage = 15) => {
+export const useIssuesFeed = (perPage = 15, filters?: {
+  search?: string;
+  user_id?: number;
+  status_id?: number;
+  category_id?: number;
+}) => {
   return useQuery({
-    queryKey: ['issues', 'feed', perPage],
+    queryKey: ['issues', 'feed', perPage, filters],
     queryFn: async () => {
-      const response = await apiClient.get<PaginatedResponse<Issue>>(`/issues/feed?per_page=${perPage}`);
+      const params: any = { per_page: perPage };
+      if (filters?.search) params.search = filters.search;
+      if (filters?.user_id) params.user_id = filters.user_id;
+      if (filters?.status_id) params.status_id = filters.status_id;
+      if (filters?.category_id) params.category_id = filters.category_id;
+
+      const response = await apiClient.get<PaginatedResponse<Issue>>('/issues/feed', { params });
       return response.data;
     },
+  });
+};
+
+/**
+ * Hook to get global counts for the dashboard cards.
+ * It fetches a large sample to calculate totals accurately.
+ */
+export const useGlobalStats = () => {
+  return useQuery({
+    queryKey: ['issues', 'global-stats'],
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<Issue>>('/issues/feed?per_page=100');
+      const all = (response.data.data || []).filter(r => !r.is_hidden);
+      return {
+        reported: all.filter(r => Number(r.status_id) === STATUS_IDS.PENDIENTE).length,
+        inProgress: all.filter(r => Number(r.status_id) === STATUS_IDS.EN_PROCESO).length,
+        resolved: all.filter(r => Number(r.status_id) === STATUS_IDS.RESUELTO).length,
+        total: all.length
+      };
+    },
+    // Refresh stats every minute or when a new issue is created
+    staleTime: 60000,
   });
 };
 
@@ -227,9 +261,30 @@ export const useWorkers = () => {
   return useQuery({
     queryKey: ['users', 'workers'],
     queryFn: async () => {
-      const response = await apiClient.get('/users');
-      const users = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      return users.filter((u: any) => u.role_id === 2);
+      const response = await apiClient.get('/admin/users');
+      let allUsers = [];
+      
+      if (Array.isArray(response.data)) {
+        allUsers = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        allUsers = response.data.data;
+      } else if (response.data && Array.isArray(response.data.users)) {
+        allUsers = response.data.users;
+      }
+
+      console.log(`[DEBUG] useWorkers - Found ${allUsers.length} total users in admin`);
+      
+      const workers = allUsers.filter((u: any) => {
+        const roleId = Number(u.role_id);
+        const roleName = (u.role?.name || '').toLowerCase();
+        
+        // Log para ver qué roles estamos recibiendo
+        
+        return roleId === 2 || roleName.includes('work') || roleName.includes('trabaj');
+      });
+
+      console.log(`[DEBUG] useWorkers - Found ${workers.length} workers`);
+      return workers;
     },
   });
 };
@@ -253,15 +308,14 @@ export const useAdminIssues = (filters?: AdminIssuesFilters) => {
     queryKey: ['admin', 'issues', filters],
     queryFn: async () => {
       const params: Record<string, any> = {};
-      if (filters?.is_hidden !== undefined) params.is_hidden = filters.is_hidden;
+      if (filters?.is_hidden !== undefined) params.is_hidden = filters.is_hidden ? 1 : 0;
       if (filters?.status_id) params.status_id = filters.status_id;
       if (filters?.category_id) params.category_id = filters.category_id;
       if (filters?.search) params.search = filters.search;
       params.per_page = filters?.per_page || 50;
 
-      // Usamos /issues temporalmente para asegurar que se vean datos, 
-      // ya que /admin/issues podría no estar retornando resultados o estar bloqueado
-      const response = await apiClient.get<PaginatedResponse<Issue>>('/issues', { params });
+      // Importante: Usar /admin/issues para poder ver los reportes ocultos
+      const response = await apiClient.get<PaginatedResponse<Issue>>('/admin/issues', { params });
       return response.data;
     },
   });
@@ -316,6 +370,7 @@ export const useToggleIssueHidden = () => {
     onSuccess: (_, { issueId }) => {
       const idStr = String(issueId);
       queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'global-stats'] }); // Actualizar contadores del dashboard
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
     },

@@ -5,9 +5,10 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
 import { useThemeStore } from '../src/store/themeStore';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
 import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
-import { fixImageUrl } from '../src/utils/image';
+import { fixImageUrl } from '../src/utils/helpers';
 
 const { width } = Dimensions.get('window');
 
@@ -255,10 +256,10 @@ export default function EditProfileScreen() {
                   <Text style={styles.accountLabel}>Modo Oscuro</Text>
                 </View>
                 <TouchableOpacity 
-                  style={{ backgroundColor: colors.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}
+                  style={{ backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}
                   onPress={toggleTheme}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.textSub }}>
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#FFF' }}>
                     {theme === 'dark' ? 'Desactivar' : 'Activar'}
                   </Text>
                 </TouchableOpacity>
@@ -284,44 +285,7 @@ export default function EditProfileScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Bottom Tabs */}
-        <View style={styles.bottomTabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-            <Ionicons name="home-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Inicio</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-            <Ionicons name="map-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Mapa</Text>
-          </TouchableOpacity>
-
-          <View style={styles.tabItemCentral}>
-            <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-              <Ionicons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-          </View>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={24} color={colors.primary} />
-            <Text style={[styles.tabLabel, { color: colors.primary }]}>Perfil</Text>
-          </TouchableOpacity>
-
-          {user?.role_id === 2 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Tareas</Text>
-            </TouchableOpacity>
-          )}
-
-          {user?.role_id === 1 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Admin</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <BottomTabBar activeTab="profile" />
 
       </View>
     </View>
@@ -419,6 +383,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -496,64 +462,14 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
-    backgroundColor: colors.border, // Dynamic background
+    backgroundColor: colors.textLight, // Using Sage Green for contrast
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: colors.textSub,
+    color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  bottomTabBar: {
-    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: 25, 
-    paddingTop: 10,
-    justifyContent: 'space-around',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  tabItemCentral: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    flex: 1,
-    marginTop: -25, 
-  },
-  tabLabel: {
-    fontSize: 11,
-    color: colors.textLight,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  fabButton: {
-    backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF', 
   }
 });

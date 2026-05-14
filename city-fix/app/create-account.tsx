@@ -5,20 +5,12 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRegister, useGoogleLogin } from '../src/hooks/useAuth';
 
-const colors = {
-  primary: '#1D4ED8', // Solid blue
-  background: '#FAFAFA',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#D1D5DB',
-  divider: '#E5E7EB',
-  error: '#EF4444',
-};
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 export default function CreateAccountScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -336,7 +328,7 @@ export default function CreateAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -450,8 +442,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: colors.textTitle,
+    borderColor: colors.textTitle,
   },
   termsText: {
     flex: 1,

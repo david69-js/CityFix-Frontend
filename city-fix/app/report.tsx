@@ -10,41 +10,11 @@ import { useCategories } from '../src/hooks/useCategories';
 import { useAuthStore } from '../src/store/authStore';
 import { useReverseGeocodeMutation } from '../src/hooks/useMaps';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
 
 const { width } = Dimensions.get('window');
 
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#E5E7EB',
-  danger: '#EF4444', 
-};
 
-// Helper to map FontAwesome strings from backend to FontAwesome5 icon names
-const getCategoryIcon = (iconName: string) => {
-  if (!iconName) return 'question-circle';
-  
-  // Limpiar formatos comunes de FontAwesome (ej: "fa-solid fa-road", "fas fa-trash", "fa-road")
-  let name = iconName.toLowerCase();
-  
-  // Eliminar prefijos comunes
-  name = name.replace('fa-solid ', '')
-             .replace('fa-regular ', '')
-             .replace('fas ', '')
-             .replace('far ', '')
-             .replace('fa-', '')
-             .replace('fa ', '');
-             
-  // Manejar nombres compuestos si quedan (ej: "trash-alt")
-  const parts = name.split(' ');
-  const finalName = parts[parts.length - 1];
-
-  return finalName || 'question-circle';
-};
 
 export default function ReportIssueScreen() {
   const router = useRouter();
@@ -403,44 +373,7 @@ export default function ReportIssueScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Bottom Tabs */}
-        <View style={styles.bottomTabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-            <Ionicons name="home-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Inicio</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-            <Ionicons name="map-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Mapa</Text>
-          </TouchableOpacity>
-
-          <View style={styles.tabItemCentral}>
-            <TouchableOpacity style={styles.fabButton}>
-              <Ionicons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={[styles.tabLabel, { marginTop: 4, color: colors.primary }]}>Reportar</Text>
-          </View>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Perfil</Text>
-          </TouchableOpacity>
-
-          {user?.role_id === 2 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Tareas</Text>
-            </TouchableOpacity>
-          )}
-
-          {user?.role_id === 1 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Admin</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <BottomTabBar activeTab="report" />
 
       </View>
     </View>
@@ -488,10 +421,5 @@ const getStyles = (colors: any) => StyleSheet.create({
   uploadedImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   submitButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 20 },
   submitButtonDisabled: { opacity: 0.7 },
-  submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 },
-  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%', zIndex: 100 },
-  tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
-  tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
-  fabButton: { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' }
+  submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 }
 });

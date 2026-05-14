@@ -2,71 +2,117 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Dimensions, Image, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUsers } from '../src/hooks/useAuth';
-import { useIssuesFeed } from '../src/hooks/useIssues';
+import { useIssuesFeed, useAdminIssues, useGlobalStats } from '../src/hooks/useIssues';
+import { useAdminUsers } from '../src/hooks/useAdmin';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
 import { useUnreadCount } from '../src/hooks/useNotifications';
-import { fixImageUrl } from '../src/utils/image';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
+import { getCategoryColor, getStatusIcon, fixImageUrl, STATUS_IDS } from '../src/utils/helpers';
+import { useDebounce } from '../src/hooks/useDebounce';
 
 const { width } = Dimensions.get('window');
 
-// Helper for Category Colors (since backend only provides name/icon)
-const getCategoryColor = (name: string, colors: any) => {
-  const n = name.toLowerCase();
-  if (n.includes('basura')) return colors.tagGarbageBg;
-  if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
-  if (n.includes('luz') || n.includes('iluminación')) return colors.tagLightingBg;
-  if (n.includes('agua')) return colors.tagWaterBg;
-  return colors.tagDefaultBg;
-};
 
-// Helper for Status Icons
-const getStatusIcon = (name: string) => {
-  const n = name.toLowerCase();
-  if (n.includes('pendiente') || n.includes('reportado')) return 'alert-circle-outline';
-  if (n.includes('proceso') || n.includes('camino')) return 'time-outline';
-  if (n.includes('resuelto') || n.includes('listo')) return 'checkmark-circle-outline';
-  return 'help-circle-outline';
-};
 
 export default function CityReporterDashboard() {
   const router = useRouter();
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
-  const { data: users, isLoading: usersLoading } = useUsers();
-  const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed();
+  
+  // Combinamos ambas fuentes de datos para mayor seguridad
+  const { data: adminUsers, isLoading: adminUsersLoading } = useAdminUsers();
+  const { data: regularUsers, isLoading: regularUsersLoading } = useUsers();
+  
+  const users = React.useMemo(() => {
+    const list = Array.isArray(adminUsers) && adminUsers.length > 0 ? adminUsers : (Array.isArray(regularUsers) ? regularUsers : []);
+    
+    return list;
+  }, [adminUsers, regularUsers]);
+
+  const usersLoading = adminUsersLoading && regularUsersLoading;
+
   const unreadCount = useUnreadCount();
 
-  const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
+  // --- Search & Filter States ---
+  const [searchText, setSearchText] = React.useState('');
+  const debouncedSearchText = useDebounce(searchText, 500);
+  const [activeStatusFilter, setActiveStatusFilter] = React.useState<number | null>(null);
+  const [showUserFilter, setShowUserFilter] = React.useState(false);
+  const [selectedUserId, setSelectedUserId] = React.useState<number | undefined>(undefined);
 
-  const allReports = feedData?.data || [];
+  // Passing filters to the hook
+  const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed(15, {
+    search: debouncedSearchText,
+    status_id: activeStatusFilter || undefined,
+    user_id: selectedUserId
+  });
 
-  // Filtering logic for the feed
+  const allReports = (feedData?.data || []).filter(r => !r.is_hidden);
+  
+  // Hook para estadísticas globales (independiente de los filtros)
+  const { data: globalStats } = useGlobalStats();
+
+  // Frontend fallback: si el backend no filtra por user_id, lo hacemos aquí
   const reports = React.useMemo(() => {
-    if (!filterStatus) return allReports;
-    return allReports.filter(r => {
-      const s = r.status?.name.toLowerCase() || '';
-      if (filterStatus === 'reported') return s.includes('reportado') || s.includes('pendiente');
-      if (filterStatus === 'progress') return s.includes('proceso') || s.includes('atendiendo');
-      if (filterStatus === 'resolved') return s.includes('resuelto') || s.includes('listo') || s.includes('finalizado');
-      return true;
-    });
-  }, [allReports, filterStatus]);
+    let filtered = allReports;
+    if (selectedUserId) {
+      filtered = filtered.filter(r => 
+        Number(r.user_id) === Number(selectedUserId) || 
+        Number(r.user?.id) === Number(selectedUserId)
+      );
+    }
+    return filtered;
+  }, [allReports, selectedUserId]);
 
-  // Calculate simple stats from ALL feed data
+  // Las estadísticas ahora vienen del hook global, no cambian al filtrar la lista
   const stats = {
-    reported: allReports.filter(r => r.status?.name.toLowerCase().includes('reportado') || r.status?.name.toLowerCase().includes('pendiente')).length,
-    inProgress: allReports.filter(r => r.status?.name.toLowerCase().includes('proceso') || r.status?.name.toLowerCase().includes('atendiendo')).length,
-    resolved: allReports.filter(r => r.status?.name.toLowerCase().includes('resuelto') || r.status?.name.toLowerCase().includes('listo') || r.status?.name.toLowerCase().includes('finalizado')).length,
+    reported: globalStats?.reported || 0,
+    inProgress: globalStats?.inProgress || 0,
+    resolved: globalStats?.resolved || 0,
   };
 
   const handleRefresh = () => {
-    setFilterStatus(null);
+    setSearchText('');
+    setActiveStatusFilter(null);
+    setSelectedUserId(undefined);
     refetch();
+  };
+
+  const handleSelectUserFilter = () => {
+    if (usersLoading) {
+      Alert.alert('Cargando...', 'Estamos obteniendo la lista de ciudadanos...');
+      return;
+    }
+    
+    // Siempre empezamos con la opción de limpiar filtro
+    const options: any[] = [
+      {
+        text: '❌ Quitar filtro / Todos',
+        onPress: () => setSelectedUserId(undefined)
+      }
+    ];
+
+    // Añadimos los usuarios si existen
+    if (Array.isArray(users) && users.length > 0) {
+      users.slice(0, 10).forEach((u: any) => {
+        options.push({
+          text: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Usuario',
+          onPress: () => setSelectedUserId(u.id)
+        });
+      });
+    }
+
+    Alert.alert(
+      'Filtrar por usuario',
+      `Mostrando ${Math.max(0, options.length - 1)} usuarios disponibles:`,
+      options,
+      { cancelable: true }
+    );
   };
 
   return (
@@ -88,7 +134,7 @@ export default function CityReporterDashboard() {
             colors={[colors.primary, '#1e40af']}
             style={styles.headerBg}
           />
-          
+
           {/* Decorative Circles for Depth */}
           <View style={styles.headerCircle1} />
           <View style={styles.headerCircle2} />
@@ -103,7 +149,7 @@ export default function CityReporterDashboard() {
                   </View>
                   <Text style={styles.headerSubtitle}>Transformando el futuro urbano</Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.notificationBell}
                   onPress={() => router.push('/notifications')}
                 >
@@ -121,43 +167,108 @@ export default function CityReporterDashboard() {
 
           {/* Stats Row with Glassmorphism */}
           <View style={styles.statsContainer}>
-            <TouchableOpacity 
-              style={[styles.statCard, filterStatus === 'reported' && styles.statCardActive]}
-              onPress={() => setFilterStatus(filterStatus === 'reported' ? null : 'reported')}
+            <TouchableOpacity
+              style={[styles.statCard, activeStatusFilter === STATUS_IDS.PENDIENTE && styles.statCardActive]}
+              onPress={() => setActiveStatusFilter(activeStatusFilter === STATUS_IDS.PENDIENTE ? null : STATUS_IDS.PENDIENTE)}
               activeOpacity={0.8}
             >
-              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(249, 115, 22, 0.2)' }]}>
-                <Ionicons name="alert-outline" size={20} color="#fb923c" />
+              <View style={[styles.statIconContainer, { backgroundColor: activeStatusFilter === STATUS_IDS.PENDIENTE ? 'rgba(255, 255, 255, 0.2)' : 'rgba(249, 115, 22, 0.2)' }]}>
+                <Ionicons name="alert-outline" size={20} color={activeStatusFilter === STATUS_IDS.PENDIENTE ? '#FFF' : "#fb923c"} />
               </View>
-              <Text style={styles.statValue}>{stats.reported}</Text>
-              <Text style={styles.statLabel}>Pendiente</Text>
+              <Text style={[styles.statValue, activeStatusFilter === STATUS_IDS.PENDIENTE && { color: '#FFF' }]}>{stats.reported}</Text>
+              <Text style={[styles.statLabel, activeStatusFilter === STATUS_IDS.PENDIENTE && { color: '#FFF' }]}>Pendiente</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.statCard, filterStatus === 'progress' && styles.statCardActive]}
-              onPress={() => setFilterStatus(filterStatus === 'progress' ? null : 'progress')}
+            <TouchableOpacity
+              style={[styles.statCard, activeStatusFilter === STATUS_IDS.EN_PROCESO && styles.statCardActive]}
+              onPress={() => setActiveStatusFilter(activeStatusFilter === STATUS_IDS.EN_PROCESO ? null : STATUS_IDS.EN_PROCESO)}
               activeOpacity={0.8}
             >
-              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-                <Ionicons name="trending-up" size={20} color="#60a5fa" />
+              <View style={[styles.statIconContainer, { backgroundColor: activeStatusFilter === STATUS_IDS.EN_PROCESO ? 'rgba(255, 255, 255, 0.2)' : 'rgba(59, 130, 246, 0.2)' }]}>
+                <Ionicons name="trending-up" size={20} color={activeStatusFilter === STATUS_IDS.EN_PROCESO ? '#FFF' : "#60a5fa"} />
               </View>
-              <Text style={styles.statValue}>{stats.inProgress}</Text>
-              <Text style={styles.statLabel}>Proceso</Text>
+              <Text style={[styles.statValue, activeStatusFilter === STATUS_IDS.EN_PROCESO && { color: '#FFF' }]}>{stats.inProgress}</Text>
+              <Text style={[styles.statLabel, activeStatusFilter === STATUS_IDS.EN_PROCESO && { color: '#FFF' }]}>Proceso</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.statCard, filterStatus === 'resolved' && styles.statCardActive]}
-              onPress={() => setFilterStatus(filterStatus === 'resolved' ? null : 'resolved')}
+            <TouchableOpacity
+              style={[styles.statCard, activeStatusFilter === STATUS_IDS.RESUELTO && styles.statCardActive]}
+              onPress={() => setActiveStatusFilter(activeStatusFilter === STATUS_IDS.RESUELTO ? null : STATUS_IDS.RESUELTO)}
               activeOpacity={0.8}
             >
-              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
-                <Ionicons name="checkmark-done" size={20} color="#34d399" />
+              <View style={[styles.statIconContainer, { backgroundColor: activeStatusFilter === STATUS_IDS.RESUELTO ? 'rgba(255, 255, 255, 0.2)' : 'rgba(16, 185, 129, 0.2)' }]}>
+                <Ionicons name="checkmark-done" size={20} color={activeStatusFilter === STATUS_IDS.RESUELTO ? '#FFF' : "#34d399"} />
               </View>
-              <Text style={styles.statValue}>{stats.resolved}</Text>
-              <Text style={styles.statLabel}>Resuelto</Text>
+              <Text style={[styles.statValue, activeStatusFilter === STATUS_IDS.RESUELTO && { color: '#FFF' }]}>{stats.resolved}</Text>
+              <Text style={[styles.statLabel, activeStatusFilter === STATUS_IDS.RESUELTO && { color: '#FFF' }]}>Resuelto</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color={colors.textLight} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar reportes por nombre..."
+            placeholderTextColor={colors.textLight}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText ? (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Ionicons name="close-circle" size={20} color={colors.textLight} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* Modern User Filter Bar */}
+        <View style={styles.userFilterContainer}>
+          <Text style={styles.filterLabel}>Filtrar por Ciudadano</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.userScrollContent}
+          >
+            {/* "All" Option */}
+            <TouchableOpacity 
+              style={[styles.userChip, !selectedUserId && styles.userChipActive]}
+              onPress={() => setSelectedUserId(undefined)}
+            >
+              <View style={[styles.avatarCircle, !selectedUserId && { borderColor: '#FFF' }]}>
+                <Ionicons name="people" size={20} color={!selectedUserId ? '#FFF' : colors.primary} />
+              </View>
+              <Text style={[styles.userChipText, !selectedUserId && { color: '#FFF' }]}>Todos</Text>
+            </TouchableOpacity>
+
+            {usersLoading ? (
+              <ActivityIndicator style={{ marginLeft: 20 }} color={colors.primary} />
+            ) : (
+              Array.isArray(users) && users.map((u: any) => (
+                <TouchableOpacity 
+                  key={u.id}
+                  style={[styles.userChip, selectedUserId === u.id && styles.userChipActive]}
+                  onPress={() => setSelectedUserId(selectedUserId === u.id ? undefined : u.id)}
+                >
+                  <View style={[styles.avatarCircle, selectedUserId === u.id && { borderColor: '#FFF' }]}>
+                    {u.avatar ? (
+                      <Image source={{ uri: fixImageUrl(u.avatar) }} style={styles.chipAvatar} />
+                    ) : (
+                      <Text style={[styles.avatarInitial, selectedUserId === u.id && { color: '#FFF' }]}>
+                        {u.first_name?.charAt(0) || u.email?.charAt(0) || '?'}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.userChipText, selectedUserId === u.id && { color: '#FFF' }]} numberOfLines={1}>
+                    {u.first_name || 'Usuario'}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+
+        <View style={styles.divider} />
 
         {/* Action Buttons Row */}
         <View style={styles.actionsContainer}>
@@ -166,7 +277,7 @@ export default function CityReporterDashboard() {
             <Text style={styles.primaryButtonText}>Reportar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/map')}>
-            <Ionicons name="location-outline" size={20} color={colors.textTitle} style={styles.btnIcon} />
+            <Ionicons name="location-outline" size={20} color={colors.blueInfluencer} style={styles.btnIcon} />
             <Text style={styles.secondaryButtonText}>Ver Mapa</Text>
           </TouchableOpacity>
         </View>
@@ -198,10 +309,10 @@ export default function CityReporterDashboard() {
 
                 {/* Image Column */}
                 {(() => {
-                  const rawUrl = report.images && report.images.length > 0 ? report.images[0].full_url : null;
+                  const rawUrl = report?.images && report.images.length > 0 ? report.images[0].full_url : null;
                   const imageUrl = fixImageUrl(rawUrl);
-                  if (imageUrl) console.log(`[DEBUG] Dashboard Image URL (Fixed): ${imageUrl}`);
-                  
+
+
                   return !imageUrl ? (
                     <View style={styles.imagePlaceholder}>
                       <View style={styles.questionMarkBox}>
@@ -217,10 +328,10 @@ export default function CityReporterDashboard() {
                 <View style={styles.reportDetails}>
 
                   <View style={styles.reportHeaderRow}>
-                    <Text style={styles.reportTitle} numberOfLines={1}>{report.title}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: report.status?.color + '20' || '#F3F4F6' }]}>
-                      <Ionicons name={getStatusIcon(report.status?.name || '') as any} size={12} color={report.status?.color || colors.textSub} />
-                      <Text style={[styles.statusText, { color: report.status?.color || colors.textSub }]}>{report.status?.name || 'Pendiente'}</Text>
+                    <Text style={styles.reportTitle} numberOfLines={1}>{report?.title}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: (report?.status?.color ?? '#F3F4F6') + '20' }]}>
+                      <Ionicons name={getStatusIcon(report?.status?.name ?? '') as any} size={12} color={report?.status?.color ?? colors.textSub} />
+                      <Text style={[styles.statusText, { color: report?.status?.color ?? colors.textSub }]}>{report?.status?.name ?? 'Pendiente'}</Text>
                     </View>
                   </View>
 
@@ -237,10 +348,10 @@ export default function CityReporterDashboard() {
                     <View style={styles.metaInfo}>
                       <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
                       <Text style={styles.metaText}>{report.upvotes_count || 0}</Text>
-                      
+
                       <Ionicons name="chatbubble-outline" size={14} color={colors.textLight} style={{ marginLeft: 12 }} />
                       <Text style={styles.metaText}>{report.comments_count || 0}</Text>
-                      
+
                       <Text style={[styles.metaText, { marginLeft: 12 }]}>{formatDate(report.created_at)}</Text>
                     </View>
                   </View>
@@ -256,43 +367,7 @@ export default function CityReporterDashboard() {
       </ScrollView>
 
       {/* Bottom Tabs */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="home-outline" size={24} color={colors.primary} />
-          <Text style={[styles.tabLabel, { color: colors.primary }]}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-          <Ionicons name="map-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Mapa</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tabItemCentral}>
-          <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" style={{ marginTop: -1 }} />
-          </TouchableOpacity>
-          <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Perfil</Text>
-        </TouchableOpacity>
-
-        {user?.role_id === 2 && (
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-            <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Tareas</Text>
-          </TouchableOpacity>
-        )}
-
-        {user?.role_id === 1 && (
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Admin</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <BottomTabBar activeTab="home" />
 
     </View>
   );
@@ -411,7 +486,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     elevation: 5,
   },
   statCardActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
     borderWidth: 2,
     transform: [{ scale: 1.05 }],
@@ -441,19 +516,26 @@ const getStyles = (colors: any) => StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 10,
     justifyContent: 'space-between',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: 20,
+    marginTop: 24,
+    opacity: 0.6,
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orangeHero, // Gold
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
     marginRight: 10,
-    shadowColor: colors.primary,
+    shadowColor: colors.orangeHero,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -473,11 +555,11 @@ const getStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     marginLeft: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: colors.blueInfluencer,
   },
   secondaryButtonText: {
-    color: colors.textTitle,
+    color: colors.blueInfluencer,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -508,9 +590,9 @@ const getStyles = (colors: any) => StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
   reportImage: {
     width: 80,
@@ -607,50 +689,89 @@ const getStyles = (colors: any) => StyleSheet.create({
     marginLeft: 4,
     fontWeight: '500',
   },
-  bottomTabBar: {
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+  searchContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: 25, // For iPhone home indicator area (approx)
-    paddingTop: 10,
-    justifyContent: 'space-around',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
     flex: 1,
+    fontSize: 15,
+    color: colors.textTitle,
   },
-  tabItemCentral: {
+  userFilterContainer: {
+    marginTop: 16,
+    paddingLeft: 20,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textTitle,
+    marginBottom: 12,
+  },
+  userScrollContent: {
+    paddingRight: 20,
+    paddingBottom: 4,
+  },
+  userChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    flex: 1,
-    marginTop: -25, // Pull the central item up
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  tabLabel: {
-    fontSize: 11,
-    color: colors.textSub,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  fabButton: {
+  userChipActive: {
     backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    borderColor: colors.primary,
+  },
+  avatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF', // To create the cut-out effect roughly
-  }
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  chipAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarInitial: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  userChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textTitle,
+  },
 });

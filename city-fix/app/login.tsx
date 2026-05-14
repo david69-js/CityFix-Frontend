@@ -5,20 +5,12 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLogin, useGoogleLogin } from '../src/hooks/useAuth';
 
-const colors = {
-  primary: '#1D4ED8',
-  background: '#FAFAFA',
-  surface: '#FFFFFF',
-  textTitle: '#111827',
-  textSub: '#4B5563',
-  textLight: '#9CA3AF',
-  border: '#D1D5DB',
-  divider: '#E5E7EB',
-  error: '#EF4444',
-};
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -250,7 +242,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, backgroundColor: colors.background },
   iconButton: { padding: 8 },

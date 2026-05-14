@@ -185,7 +185,19 @@ export const useUsers = () => {
     queryKey: ['users'],
     queryFn: async () => {
       const response = await apiClient.get('/users');
-      return response.data;
+      console.log('[DEBUG] GET /api/users response structure:', Object.keys(response.data));
+      
+      // Handle various response formats:
+      // 1. Direct array: [user1, user2]
+      if (Array.isArray(response.data)) return response.data;
+      
+      // 2. Paginated or wrapped: { data: [user1, user2] }
+      if (response.data && Array.isArray(response.data.data)) return response.data.data;
+      
+      // 3. Nested users: { users: [user1, user2] }
+      if (response.data && Array.isArray(response.data.users)) return response.data.users;
+      
+      return [];
     },
   });
 };

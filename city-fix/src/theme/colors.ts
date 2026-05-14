@@ -52,116 +52,122 @@ export type ThemeColors = {
   blueDot: string;
 
   unreadBg: string;
+  adminHighlight: string;
+  workerHighlight: string;
 };
 
 export const lightColors: ThemeColors = {
-  primary: '#2065ff', // Bright blue
-  background: '#F9FAFB', // Light gray background
-  surface: '#FFFFFF', // White cards
-  textTitle: '#111827', // Very dark gray
-  textSub: '#4B5563', // Medium gray
-  textLight: '#9CA3AF', // Light gray text
-  border: '#E5E7EB', // Light border
-  danger: '#EF4444', // Red
+  primary: '#364461', // Color 5: Dark Blue/Navy
+  background: '#FFFFFF', // Keeping it white as requested
+  surface: '#FFFFFF',
+  textTitle: '#364461', // Navy for titles
+  textSub: '#4d686f', // Teal for subtext
+  textLight: '#6d756a', // Sage for light text
+  border: '#6d756a', // Sage for borders
+  danger: '#C0392B', // Darker red to match
 
-  statBgBlue: '#F0F9FF',
-  statTextBlue: '#0284C7',
+  statBgBlue: '#EBF5FB',
+  statTextBlue: '#4d686f',
   statBgGreen: '#F0FDF4',
   statTextGreen: '#16A34A',
   statBgPurple: '#FAF5FF',
   statTextPurple: '#9333EA',
-  statBgOrange: '#FFFBEB',
-  statTextOrange: '#D97706',
+  statBgOrange: '#FEF9E7',
+  statTextOrange: '#bfa374',
 
-  orangeHero: '#F59E0B',
-  blueInfluencer: '#3B82F6',
-  greySuper: '#E5E7EB',
+  orangeHero: '#e3ba6a', // Color 1: Gold
+  blueInfluencer: '#4d686f',
+  greySuper: '#6d756a',
 
-  badgeYellowBg: '#FEF3C7',
-  badgeYellowText: '#92400E',
-  badgeBlueBg: '#DBEAFE',
-  badgeBlueText: '#1E40AF',
+  badgeYellowBg: '#e3ba6a',
+  badgeYellowText: '#364461',
+  badgeBlueBg: '#D6EAF8',
+  badgeBlueText: '#4d686f',
   badgeGreyBg: '#F3F4F6',
   badgeGreyText: '#9CA3AF',
 
-  iconOrangeBg: '#FFF2EB',
-  iconOrangeFg: '#F97316',
-  iconBlueBg: '#EEF4FF',
-  iconBlueFg: '#3B82F6',
+  iconOrangeBg: '#FEF9E7',
+  iconOrangeFg: '#bfa374', // Color 2: Sand
+  iconBlueBg: '#EBF5FB',
+  iconBlueFg: '#4d686f', // Color 4: Teal
   iconGreenBg: '#ECFDF5',
   iconGreenFg: '#10B981',
 
-  tagDefaultBg: '#4B5563',
-  tagGarbageBg: '#F59E0B',
-  tagRoadsBg: '#4B5563',
-  tagLightingBg: '#EAB308',
-  tagWaterBg: '#3B82F6',
+  tagDefaultBg: '#4d686f',
+  tagGarbageBg: '#e3ba6a',
+  tagRoadsBg: '#364461',
+  tagLightingBg: '#bfa374',
+  tagWaterBg: '#4d686f',
 
   workerGreen: '#10B981',
 
-  statusProgressBg: '#EEF4FF',
-  statusProgressFg: '#3B82F6',
-  buttonBlueBg: '#E0E7FF',
-  buttonBlueText: '#4338CA', 
-  timelineLine: '#E5E7EB',
-  orangeDot: '#F97316',
-  blueDot: '#3B82F6',
+  statusProgressBg: '#EBF5FB',
+  statusProgressFg: '#4d686f',
+  buttonBlueBg: '#D6EAF8',
+  buttonBlueText: '#364461', 
+  timelineLine: '#6d756a',
+  orangeDot: '#e3ba6a',
+  blueDot: '#4d686f',
 
-  unreadBg: '#EEF4FF',
+  unreadBg: '#EBF5FB',
+  adminHighlight: '#4d686f', // Teal for Admin
+  workerHighlight: '#6d756a', // Sage for Worker
 };
 
 export const darkColors: ThemeColors = {
-  primary: '#3b82f6', // Slightly softer blue for dark mode
-  background: '#121212', // Very dark background (Material Dark)
-  surface: '#1E1E1E', // Dark cards
-  textTitle: '#F9FAFB', // Almost white text
-  textSub: '#D1D5DB', // Light-medium gray text
-  textLight: '#9CA3AF', // Gray text
-  border: '#333333', // Dark border
-  danger: '#F87171', // Softer red
+  primary: '#364461', // Back to Navy (less overwhelming for large areas)
+  background: '#151C2C', 
+  surface: '#1E2738', 
+  textTitle: '#FFFFFF', 
+  textSub: '#bfa374', 
+  textLight: '#6d756a', 
+  border: '#364461', 
+  danger: '#EC7063', 
 
-  statBgBlue: '#0C4A6E',
-  statTextBlue: '#38BDF8',
-  statBgGreen: '#064E3B',
+  statBgBlue: '#1B263B',
+  statTextBlue: '#4d686f',
+  statBgGreen: '#0E2F26',
   statTextGreen: '#34D399',
-  statBgPurple: '#3B0764',
+  statBgPurple: '#2A1B3D',
   statTextPurple: '#C084FC',
-  statBgOrange: '#78350F',
-  statTextOrange: '#FBBF24',
+  statBgOrange: '#2C2314',
+  statTextOrange: '#e3ba6a',
 
-  orangeHero: '#F59E0B',
-  blueInfluencer: '#3B82F6',
-  greySuper: '#4B5563',
+  orangeHero: '#e3ba6a',
+  blueInfluencer: '#4d686f',
+  greySuper: '#6d756a',
 
-  badgeYellowBg: '#78350F',
-  badgeYellowText: '#FDE68A',
-  badgeBlueBg: '#1E3A8A',
-  badgeBlueText: '#BFDBFE',
-  badgeGreyBg: '#374151',
-  badgeGreyText: '#D1D5DB',
+  badgeYellowBg: '#2C2314',
+  badgeYellowText: '#e3ba6a',
+  badgeBlueBg: '#1B263B',
+  badgeBlueText: '#4d686f',
+  badgeGreyBg: '#243048',
+  badgeGreyText: '#6d756a',
 
-  iconOrangeBg: '#78350F',
-  iconOrangeFg: '#FBBF24',
-  iconBlueBg: '#1E3A8A',
-  iconBlueFg: '#93C5FD',
-  iconGreenBg: '#064E3B',
-  iconGreenFg: '#6EE7B7',
+  iconOrangeBg: '#2C2314',
+  iconOrangeFg: '#e3ba6a',
+  iconBlueBg: '#1B263B',
+  iconBlueFg: '#4d686f',
+  iconGreenBg: '#0E2F26',
+  iconGreenFg: '#34D399',
 
-  tagDefaultBg: '#4B5563',
-  tagGarbageBg: '#D97706',
-  tagRoadsBg: '#374151',
-  tagLightingBg: '#CA8A04',
-  tagWaterBg: '#2563EB',
+  tagDefaultBg: '#364461',
+  tagGarbageBg: '#e3ba6a',
+  tagRoadsBg: '#364461',
+  tagLightingBg: '#bfa374',
+  tagWaterBg: '#4d686f',
 
-  workerGreen: '#059669', // Darker green for dark mode
+  workerGreen: '#6d756a', // Sage as requested for assignments
 
-  statusProgressBg: '#1E3A8A',
-  statusProgressFg: '#93C5FD',
-  buttonBlueBg: '#312E81',
-  buttonBlueText: '#A5B4FC', 
-  timelineLine: '#374151',
-  orangeDot: '#D97706',
-  blueDot: '#2563EB',
+  statusProgressBg: '#1B263B',
+  statusProgressFg: '#4d686f',
+  buttonBlueBg: '#1B263B',
+  buttonBlueText: '#e3ba6a', 
+  timelineLine: '#364461',
+  orangeDot: '#e3ba6a',
+  blueDot: '#4d686f',
 
-  unreadBg: '#1E3A8A', // Dark blue background for unread items
+  unreadBg: '#1B263B',
+  adminHighlight: '#4d686f', // Teal for Admin
+  workerHighlight: '#6d756a', // Sage for Worker
 };

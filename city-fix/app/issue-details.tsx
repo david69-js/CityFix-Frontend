@@ -1,33 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform, Alert } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
-import { fixImageUrl } from '../src/utils/image';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
+import { getCategoryColor, getStatusIcon, fixImageUrl } from '../src/utils/helpers';
 
 const { width } = Dimensions.get('window');
 
-// Helper for Category Colors
-const getCategoryColor = (name: string, colors: any) => {
-  const n = name.toLowerCase();
-  if (n.includes('basura')) return colors.tagGarbageBg;
-  if (n.includes('bache') || n.includes('vía')) return colors.tagRoadsBg;
-  if (n.includes('luz') || n.includes('iluminación')) return colors.tagLightingBg;
-  if (n.includes('agua')) return colors.tagWaterBg;
-  return colors.tagDefaultBg;
-};
 
-// Helper for Status Icons
-const getStatusIcon = (name: string) => {
-  const n = name.toLowerCase();
-  if (n.includes('pendiente') || n.includes('reportado')) return 'alert-circle-outline';
-  if (n.includes('proceso') || n.includes('camino')) return 'time-outline';
-  if (n.includes('resuelto') || n.includes('listo')) return 'checkmark-circle-outline';
-  return 'help-circle-outline';
-};
 
 export default function IssueDetailsScreen() {
   const router = useRouter();
@@ -43,6 +27,7 @@ export default function IssueDetailsScreen() {
   const toggleUpvoteMutation = useToggleUpvote();
   const updateStatusMutation = useUpdateIssueStatus();
   const assignWorkerMutation = useAssignWorker();
+  const toggleHiddenMutation = useToggleIssueHidden();
   const { data: workers } = useWorkers();
   const { data: feedData } = useIssuesFeed(100);
   
@@ -140,7 +125,6 @@ export default function IssueDetailsScreen() {
   }
 
   const mainImage = fixImageUrl(issue.images && issue.images.length > 0 ? issue.images[0].full_url : null);
-  if (mainImage) console.log(`[DEBUG] IssueDetails Image URL (Fixed): ${mainImage}`);
 
   return (
     <View style={styles.safeArea}>
@@ -221,34 +205,45 @@ export default function IssueDetailsScreen() {
               </View>
             )}
 
+            {/* Separator if both sections are present */}
+            {user?.role_id === 1 && (
+              <View style={[styles.divider, { marginVertical: 10, backgroundColor: colors.border }]} />
+            )}
+
             {/* Admin Action: Assign Worker */}
             {user?.role_id === 1 && (
               <View style={[styles.adminActionContainer, { borderColor: colors.primary, borderWidth: 1 }]}>
                 <Text style={styles.adminActionLabel}>Asignar a Trabajador:</Text>
                 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                  {workers?.map((worker: any) => (
-                    <TouchableOpacity
-                      key={worker.id}
-                      style={[
-                        styles.workerSelectBtn,
-                        selectedWorker === worker.id && styles.workerSelectBtnActive
-                      ]}
-                      onPress={() => setSelectedWorker(worker.id)}
-                    >
-                      <Ionicons 
-                        name="person-circle-outline" 
-                        size={20} 
-                        color={selectedWorker === worker.id ? '#FFF' : colors.primary} 
-                      />
-                      <Text style={[
-                        styles.workerSelectText,
-                        selectedWorker === worker.id && { color: '#FFF' }
-                      ]}>
-                        {worker.first_name} {worker.last_name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {workers && workers.length > 0 ? (
+                    workers.map((worker: any) => (
+                      <TouchableOpacity
+                        key={worker.id}
+                        style={[
+                          styles.workerSelectBtn,
+                          selectedWorker === worker.id && styles.workerSelectBtnActive
+                        ]}
+                        onPress={() => setSelectedWorker(worker.id)}
+                      >
+                        <Ionicons 
+                          name="person-circle-outline" 
+                          size={20} 
+                          color={selectedWorker === worker.id ? '#FFF' : colors.primary} 
+                        />
+                        <Text style={[
+                          styles.workerSelectText,
+                          selectedWorker === worker.id && { color: '#FFF' }
+                        ]}>
+                          {worker.first_name} {worker.last_name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={{ padding: 10 }}>
+                      <Text style={{ color: colors.textSub, fontStyle: 'italic' }}>No hay trabajadores registrados con el rol correspondiente.</Text>
+                    </View>
+                  )}
                 </ScrollView>
 
                 <TextInput
@@ -279,6 +274,8 @@ export default function IssueDetailsScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+
 
             {/* Title & Tag */}
             <View style={styles.titleRow}>
@@ -330,7 +327,7 @@ export default function IssueDetailsScreen() {
                     <Ionicons 
                       name={issue?.has_voted ? "thumbs-up" : "thumbs-up-outline"} 
                       size={18} 
-                      color={issue?.has_voted ? '#FFF' : colors.primary} 
+                      color={issue?.has_voted || colors.primary === '#364461' ? '#FFF' : colors.primary} 
                       style={styles.btnIcon} 
                     />
                     <Text style={[styles.voteBtnText, issue?.has_voted && styles.voteBtnTextActive]}>
@@ -431,6 +428,55 @@ export default function IssueDetailsScreen() {
               ))}
             </View>
 
+            {/* Admin Action: Archive Issue (Moved to the bottom of timeline) */}
+            {user?.role_id === 1 && (
+              <View style={{ marginTop: 0, marginBottom: 20 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.archiveBtn, 
+                    issue?.is_hidden && styles.archiveBtnActive,
+                    toggleHiddenMutation.isPending && { opacity: 0.7 }
+                  ]}
+                  onPress={() => {
+                    const isHidden = issue?.is_hidden;
+                    Alert.alert(
+                      isHidden ? 'Mostrar reporte' : 'Archivar reporte',
+                      isHidden 
+                        ? '¿Deseas que este reporte sea visible nuevamente en el feed público?' 
+                        : '¿Estás seguro de archivar este reporte? Dejará de ser visible para los ciudadanos.',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        {
+                          text: isHidden ? 'Mostrar' : 'Archivar',
+                          onPress: () => toggleHiddenMutation.mutate({
+                            issueId: issue.id,
+                            reason: isHidden ? undefined : 'Archivado por administrador'
+                          })
+                        }
+                      ]
+                    );
+                  }}
+                  disabled={toggleHiddenMutation.isPending}
+                >
+                  {toggleHiddenMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name={issue?.is_hidden ? 'eye-outline' : 'eye-off-outline'} size={18} color="#FFF" />
+                      <Text style={styles.archiveBtnText}>
+                        {issue?.is_hidden ? 'Hacer Visible (Desarchivar)' : 'Archivar Reporte'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {issue?.is_hidden && issue.hidden_reason && (
+                  <Text style={styles.archiveReasonText}>
+                    Motivo: {issue.hidden_reason}
+                  </Text>
+                )}
+              </View>
+            )}
+
             {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
             {(() => {
@@ -507,45 +553,7 @@ export default function IssueDetailsScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Bottom Tabs */}
-        <View style={styles.bottomTabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-            <Ionicons name="home-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Inicio</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-            <Ionicons name="map-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Mapa</Text>
-          </TouchableOpacity>
-
-          <View style={styles.tabItemCentral}>
-            <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-              <Ionicons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-          </View>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Perfil</Text>
-          </TouchableOpacity>
-
-          {user?.role_id === 2 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Tareas</Text>
-            </TouchableOpacity>
-          )}
-
-          {user?.role_id === 1 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Admin</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
+        <BottomTabBar activeTab="none" />
       </View>
     </View>
   );
@@ -614,6 +622,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 24,
     marginBottom: 12,
   },
   issueTitle: {
@@ -637,13 +646,17 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 15,
     color: colors.textSub,
     lineHeight: 22,
-    marginBottom: 20,
+    marginTop: 8,
+    marginBottom: 24,
   },
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginTop: 16,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -692,13 +705,13 @@ const getStyles = (colors: any) => StyleSheet.create({
     opacity: 0.7,
   },
   voteBtnActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orangeHero,
   },
   btnIcon: {
     marginRight: 8,
   },
   voteBtnText: {
-    color: colors.primary,
+    color: colors.primary === '#364461' ? '#FFF' : colors.primary, // White in Dark Mode
     fontWeight: '700',
     fontSize: 15,
   },
@@ -732,7 +745,9 @@ const getStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 30,
+    marginBottom: 40,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -827,11 +842,11 @@ const getStyles = (colors: any) => StyleSheet.create({
     marginBottom: 12,
   },
   submitCommentBtn: {
-    backgroundColor: colors.primary,
-    padding: 14,
+    backgroundColor: colors.orangeHero,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 12,
   },
   submitCommentBtnDisabled: {
     opacity: 0.5,
@@ -895,56 +910,11 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 13,
     color: colors.textSub,
   },
-  bottomTabBar: {
-    boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: 25, 
-    paddingTop: 10,
-    justifyContent: 'space-around',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    zIndex: 100,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  tabItemCentral: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    flex: 1,
-    marginTop: -25, 
-  },
-  tabLabel: {
-    fontSize: 11,
+  emptyText: {
+    fontSize: 16,
     color: colors.textLight,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  fabButton: {
-    backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF', 
+    textAlign: 'center',
+    marginTop: 20,
   },
   adminActionContainer: {
     backgroundColor: colors.surface,
@@ -952,6 +922,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderRadius: 12,
     marginTop: 10,
     marginBottom: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   adminActionLabel: {
     fontSize: 12,
@@ -1027,5 +999,35 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 6,
-  }
+  },
+  archiveBtn: {
+    backgroundColor: '#6B7280',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  archiveBtnActive: {
+    backgroundColor: '#10B981',
+  },
+  archiveBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  archiveReasonText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontStyle: 'italic',
+    marginTop: 4,
+    textAlign: 'center',
+  },
 });

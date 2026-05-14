@@ -4,19 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const { width, height } = Dimensions.get('window');
+import { useThemeColors } from '../src/hooks/useThemeColors';
 
-const colors = {
-  primary: '#2065ff', // Bright blue background
-  surface: '#FFFFFF',
-  textLight: '#E0E7FF',
-  divider: 'rgba(255, 255, 255, 0.2)',
-  cardBg: 'rgba(255, 255, 255, 0.1)',
-  cardBorder: 'rgba(255, 255, 255, 0.2)',
-};
+const { width, height } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
 
   const handleLogin = () => {
     router.replace('/login');
@@ -124,14 +119,13 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingTop: height * 0.02,
     paddingBottom: 10,
@@ -157,12 +151,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.surface,
+    color: colors.textTitle,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,
-    color: colors.textLight,
+    color: colors.textSub,
     textAlign: 'center',
     paddingHorizontal: 10,
     lineHeight: 22,
@@ -175,18 +169,23 @@ const styles = StyleSheet.create({
   },
   featureCard: {
     width: '48%',
-    backgroundColor: colors.cardBg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.border,
     borderRadius: 16,
     padding: 16,
     marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   iconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -194,12 +193,12 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.surface,
+    color: colors.textTitle,
     marginBottom: 6,
   },
   featureDesc: {
     fontSize: 11,
-    color: colors.textLight,
+    color: colors.textSub,
     lineHeight: 16,
   },
   statsContainer: {
@@ -215,44 +214,50 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.surface,
+    color: colors.textTitle,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 13,
-    color: colors.textLight,
+    color: colors.textSub,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: colors.divider,
+    backgroundColor: colors.border,
+    opacity: 0.3,
   },
   actionsContainer: {
     marginTop: 20,
   },
   primaryButton: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: colors.primary,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.divider,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 20,
   },
   secondaryButtonText: {
-    color: colors.surface,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '700',
   },

@@ -4,18 +4,18 @@
 
 | Prioridad | Feature | Estado Actual |
 |-----------|---------|---------------|
-| 🔴 Alta | Bug: Admin no puede acceder al panel (role_id incorrecto) | ❌ Bloqueante |
-| 🔴 Alta | Buscador de reportes por nombre y usuario | ❌ No existe |
-| 🔴 Alta | Archivar reportes en vez de eliminar | ❌ No existe |
-| 🔴 Alta | Admin: editar/archivar/activar usuarios | ❌ No existe |
-| 🟡 Media | Filtros por estado al clickear stats | ❌ No existe |
+| 🔴 Alta | Bug: Admin no puede acceder al panel (role_id incorrecto) | ✅ Listo |
+| 🔴 Alta | Buscador de reportes por nombre y usuario | ✅ Listo |
+| 🔴 Alta | Archivar reportes en vez de eliminar | ✅ Listo |
+| 🔴 Alta | Admin: editar/archivar/activar usuarios | ✅ Listo |
+| 🟡 Media | Filtros por estado al clickear stats | ✅ Listo |
 | 🟢 Baja | Refactor: componente BottomTabBar reutilizable | ❌ Duplicado en 9 archivos |
 
 ---
 
 ## 🔧 Fase 0 — Bugfixes Prioritarios
 
-### 0.1 Corregir verificación de rol admin
+### 0.1 Corregir verificación de rol admin (✅ Completado)
 
 **Archivo**: `app/admin.tsx` — línea 305
 
@@ -26,12 +26,16 @@ Ejecutar en la base de datos:
 ```sql
 UPDATE users SET role_id = 1 WHERE email = 'admin@cityfix.com';
 ```
+*(Ejecutado correctamente en el servidor)*
 
 ---
 
 ## 🔍 Fase 1 — Buscador de Reportes
 
-### 1.1 Modificar hook `useIssuesFeed`
+### 1.1 Modificar hook `useIssuesFeed` (✅ Completado)
+| 1.2 Agregar barra de búsqueda en Dashboard (✅ Completado)
+| 1.3 Filtro por usuario en Dashboard (✅ Completado)
+| 1.4 Filtrar por estado desde stats (✅ Completado)
 
 **Archivo**: `src/hooks/useIssues.ts`
 

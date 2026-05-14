@@ -6,6 +6,8 @@ import { useAuthStore } from '../src/store/authStore';
 import { useMyAssignments } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
+import { getCategoryColor } from '../src/utils/helpers';
 
 export default function AssignmentsScreen() {
   const router = useRouter();
@@ -23,19 +25,12 @@ export default function AssignmentsScreen() {
     );
   }
 
-  const getCategoryColor = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes('basura')) return '#F59E0B';
-    if (n.includes('bache') || n.includes('vía')) return '#4B5563';
-    if (n.includes('luz') || n.includes('iluminación')) return '#EAB308';
-    if (n.includes('agua')) return '#3B82F6';
-    return '#4B5563';
-  };
+
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={{ backgroundColor: colors.workerGreen }}>
+      <SafeAreaView style={{ backgroundColor: colors.workerHighlight }}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Mi Bandeja de Tareas</Text>
         </View>
@@ -44,11 +39,11 @@ export default function AssignmentsScreen() {
       <ScrollView 
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.workerGreen} />
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.workerHighlight} />
         }
       >
         {isLoading ? (
-          <ActivityIndicator size="large" color={colors.workerGreen} style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.workerHighlight} style={{ marginTop: 40 }} />
         ) : assignments && assignments.length > 0 ? (
           assignments.map((assignment: any) => {
             const issue = assignment.issue;
@@ -60,7 +55,7 @@ export default function AssignmentsScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.cardHeader}>
-                  <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue?.category?.name || '') }]}>
+                  <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue?.category?.name || '', colors) }]}>
                     <Text style={styles.categoryBadgeText}>{issue?.category?.name || 'General'}</Text>
                   </View>
                   <Text style={styles.dateText}>{formatDate(assignment.assigned_at)}</Text>
@@ -97,34 +92,7 @@ export default function AssignmentsScreen() {
       </ScrollView>
 
       {/* Bottom Tabs */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-          <Ionicons name="home-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-          <Ionicons name="map-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Mapa</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tabItemCentral}>
-          <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-          <Ionicons name="briefcase" size={24} color={colors.workerGreen} />
-          <Text style={[styles.tabLabel, { color: colors.workerGreen }]}>Tareas</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabBar activeTab="assignments" />
     </View>
   );
 }
@@ -149,14 +117,10 @@ const getStyles = (colors: any) => StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   statusText: { fontSize: 13, fontWeight: '600' },
   actionBtn: { flexDirection: 'row', alignItems: 'center' },
-  actionBtnText: { color: colors.workerGreen, fontSize: 13, fontWeight: '600', marginRight: 4 },
+  actionBtnText: { color: colors.workerHighlight, fontSize: 13, fontWeight: '600', marginRight: 4 },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyTitle: { fontSize: 20, fontWeight: 'bold', color: colors.textTitle, marginTop: 16 },
   emptyDesc: { fontSize: 14, color: colors.textSub, marginTop: 8, textAlign: 'center' },
   
-  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%' },
-  tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
-  tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
-  fabButton: { backgroundColor: colors.workerGreen, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.workerGreen, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' }
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 40 },
 });

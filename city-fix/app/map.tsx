@@ -7,18 +7,9 @@ import * as Location from 'expo-location';
 import { useIssuesFeed } from '../src/hooks/useIssues';
 import { useAuthStore } from '../src/store/authStore';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
 
 const { width, height } = Dimensions.get('window');
-
-const colors = {
-  primary: '#2065ff',
-  background: '#F9FAFB', 
-  surface: '#FFFFFF', 
-  textTitle: '#111827', 
-  textSub: '#4B5563', 
-  textLight: '#9CA3AF', 
-  border: '#E5E7EB',
-};
 
 // Default region: Cochabamba, Bolivia
 const DEFAULT_REGION = {
@@ -48,7 +39,7 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const allReports = feedData?.data || [];
+  const allReports = (feedData?.data || []).filter(r => !r.is_hidden);
 
   // Request user location on mount
   useEffect(() => {
@@ -150,7 +141,7 @@ export default function MapScreen() {
                 style={[styles.filterChip, activeFilter === f.key && styles.filterChipActive]}
                 onPress={() => setActiveFilter(f.key)}
               >
-                <Text style={[styles.filterText, activeFilter === f.key && styles.filterTextActive]}>
+                <Text style={styles.filterText}>
                   {f.key} ({f.count})
                 </Text>
               </TouchableOpacity>
@@ -232,44 +223,7 @@ export default function MapScreen() {
           </View>
         </View>
 
-        {/* Bottom Tabs */}
-        <View style={styles.bottomTabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-            <Ionicons name="home-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Inicio</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="map" size={24} color={colors.primary} />
-            <Text style={[styles.tabLabel, { color: colors.primary }]}>Mapa</Text>
-          </TouchableOpacity>
-
-          <View style={styles.tabItemCentral}>
-            <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-              <Ionicons name="add" size={32} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-          </View>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Perfil</Text>
-          </TouchableOpacity>
-
-          {user?.role_id === 2 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-              <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Tareas</Text>
-            </TouchableOpacity>
-          )}
-
-          {user?.role_id === 1 && (
-            <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-              <Text style={styles.tabLabel}>Admin</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <BottomTabBar activeTab="map" />
 
       </View>
     </View>
@@ -320,15 +274,12 @@ const getStyles = (colors: any) => StyleSheet.create({
     marginRight: 10,
   },
   filterChipActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orangeHero,
   },
   filterText: {
     fontSize: 14,
-    color: colors.textTitle,
-    fontWeight: '500',
-  },
-  filterTextActive: {
     color: '#FFF',
+    fontWeight: '600',
   },
   mapArea: {
     flex: 1,
@@ -412,56 +363,5 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '700',
-  },
-  // Bottom tabs
-  bottomTabBar: {
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: 25, 
-    paddingTop: 10,
-    justifyContent: 'space-around',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    zIndex: 100,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  tabItemCentral: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    flex: 1,
-    marginTop: -25, 
-  },
-  tabLabel: {
-    fontSize: 11,
-    color: colors.textLight,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  fabButton: {
-    backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: '#FFFFFF', 
   }
 });

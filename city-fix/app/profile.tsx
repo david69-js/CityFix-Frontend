@@ -7,8 +7,9 @@ import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
 import { useMyIssues } from '../src/hooks/useIssues';
 import { formatDate } from '../src/utils/date';
-import { fixImageUrl } from '../src/utils/image';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
+import { fixImageUrl, getCategoryColor } from '../src/utils/helpers';
 
 const { width } = Dimensions.get('window');
 
@@ -28,15 +29,7 @@ export default function ProfileScreen() {
   const totalReports = myIssues?.length || 0;
   const totalVotes = myIssues?.reduce((sum, issue) => sum + (issue.upvotes_count || 0), 0) || 0;
 
-  // Render Category Tag Color helper
-  const getCategoryColor = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes('basura')) return '#F59E0B';
-    if (n.includes('bache') || n.includes('vía')) return '#4B5563';
-    if (n.includes('luz') || n.includes('iluminación')) return '#EAB308';
-    if (n.includes('agua')) return '#3B82F6';
-    return '#4B5563';
-  };
+
 
   const handlePickAvatar = () => {
     Alert.alert(
@@ -111,8 +104,6 @@ export default function ProfileScreen() {
                     <Image 
                       source={{ uri: `${fixImageUrl(user.avatar)}?t=${new Date().getTime()}` }} 
                       style={styles.avatarImage} 
-                      onLoad={() => console.log('[DEBUG] Avatar loaded successfully')}
-                      onError={(e) => console.error('[DEBUG] Avatar load error:', e.nativeEvent.error, 'URL:', fixImageUrl(user.avatar))}
                     />
                   ) : (
                     <Ionicons name="person-outline" size={60} color={colors.primary} />
@@ -275,7 +266,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.issueInfo}>
                   <View style={styles.issueHeader}>
-                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue.category?.name || '') }]}>
+                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue.category?.name || '', colors) }]}>
                       <Text style={styles.categoryBadgeText}>{issue.category?.name || 'General'}</Text>
                     </View>
                     <Text style={styles.issueDate}>{formatDate(issue.created_at)}</Text>
@@ -326,45 +317,7 @@ export default function ProfileScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      {/* Bottom Tabs */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-          <Ionicons name="home-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-          <Ionicons name="map-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Mapa</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tabItemCentral}>
-          <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="person-outline" size={24} color={colors.primary} />
-          <Text style={[styles.tabLabel, { color: colors.primary }]}>Perfil</Text>
-        </TouchableOpacity>
-
-        {user?.role_id === 2 && (
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/assignments')}>
-            <Ionicons name="briefcase-outline" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Tareas</Text>
-          </TouchableOpacity>
-        )}
-
-        {user?.role_id === 1 && (
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/admin')}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.textLight} />
-            <Text style={styles.tabLabel}>Admin</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
+      <BottomTabBar activeTab="profile" />
     </View>
   );
 }
@@ -468,6 +421,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
     // Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -656,13 +611,23 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   emptyReportsText: { fontSize: 14, color: colors.textSub, marginBottom: 12 },
   reportFirstLink: { color: colors.primary, fontWeight: 'bold', fontSize: 14 },
-  logoutButton: { flexDirection: 'row', backgroundColor: '#FEF2F2', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10, borderWidth: 1, borderColor: '#FCA5A5' },
-  logoutText: { color: colors.danger, fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
-  bottomTabBar: { elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%', zIndex: 100 },
-  tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
-  tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
-  fabButton: { backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' },
+  logoutButton: { 
+    flexDirection: 'row', 
+    backgroundColor: colors.surface, 
+    paddingVertical: 14, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 10, 
+    borderWidth: 1, 
+    borderColor: colors.danger + '40', // 25% opacity
+  },
+  logoutText: { 
+    color: colors.danger, 
+    fontWeight: 'bold', 
+    fontSize: 15, 
+    marginLeft: 8 
+  },
   issueCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: colors.border },
   issueImage: { 
     width: 80, 

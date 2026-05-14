@@ -9,6 +9,9 @@ import { useUpdateProfile } from '../src/hooks/useAuth';
 import apiClient from '../src/api/axios';
 import { useSendCampaign } from '../src/hooks/useNotifications';
 import { useThemeColors } from '../src/hooks/useThemeColors';
+import { BottomTabBar } from '../src/components/BottomTabBar';
+import { useAdminIssues, useToggleIssueHidden } from '../src/hooks/useIssues';
+import { useAdminUsers, useToggleUserActive, useAdminUpdateUser } from '../src/hooks/useAdmin';
 
 const { width } = Dimensions.get('window');
 
@@ -75,6 +78,22 @@ export default function AdminScreen() {
   const [statusColor, setStatusColor] = useState('#FFC107');
   const [statusOrder, setStatusOrder] = useState('1');
   const [isCreatingStatus, setIsCreatingStatus] = useState(false);
+
+  // --- States for Archived Issues ---
+  const [showArchivedIssues, setShowArchivedIssues] = useState(false);
+  const [archivedSearch, setArchivedSearch] = useState('');
+
+  // --- States for User Management ---
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const { data: archivedIssues, isLoading: loadingArchived } = useAdminIssues({ is_hidden: true });
+  const toggleIssueHiddenMutation = useToggleIssueHidden();
+
+  const { data: userList } = useAdminUsers();
+  const toggleUserActiveMutation = useToggleUserActive();
+  const adminUpdateUserMutation = useAdminUpdateUser();
 
   const [roles, setRoles] = useState<any[]>([]);
 
@@ -295,6 +314,50 @@ export default function AdminScreen() {
     }
   };
 
+  const handleEditUserRole = (user: any) => {
+    Alert.prompt(
+      'Nuevo Rol (ID)',
+      `Actual: ${user.role?.name} (ID: ${user.role_id})\nAdmin: 1, Worker: 2, Citizen: 3`,
+      async (newRoleId) => {
+        if (!newRoleId) return;
+        try {
+          await adminUpdateUserMutation.mutateAsync({
+            userId: user.id,
+            payload: { role_id: parseInt(newRoleId, 10) }
+          });
+          Alert.alert('Éxito', 'Rol actualizado');
+        } catch (error: any) {
+          Alert.alert('Error', error.response?.data?.message || 'Error al actualizar');
+        }
+      },
+      'plain-text',
+      String(user.role_id)
+    );
+  };
+
+  const handleToggleUserActive = async (user: any) => {
+    const isCurrentlyActive = user.is_active === true || Number(user.is_active) === 1;
+    const action = isCurrentlyActive ? 'archivar' : 'activar';
+    Alert.alert(
+      `${action === 'activar' ? 'Activar' : 'Archivar'} usuario`,
+      `¿Estás seguro de ${action} a ${user.first_name} ${user.last_name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: action === 'activar' ? 'Activar' : 'Archivar',
+          onPress: async () => {
+            try {
+              await toggleUserActiveMutation.mutateAsync(user.id);
+              Alert.alert('Éxito', `Usuario ${action}do correctamente`);
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || `Error al ${action} usuario`);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Redirect if not admin (role_id 1 is Admin based on context)
   if (user?.role_id !== 1) {
     return (
@@ -353,7 +416,7 @@ export default function AdminScreen() {
                     <FontAwesome5 
                       name={icon.name} 
                       size={24} 
-                      color={categoryIcon === icon.value ? colors.primary : colors.textSub} 
+                      color={categoryIcon === icon.value ? colors.adminHighlight : colors.textSub} 
                     />
                   </TouchableOpacity>
                 ))}
@@ -382,7 +445,7 @@ export default function AdminScreen() {
             <TextInput style={styles.input} placeholder="Teléfono" value={userPhone} onChangeText={setUserPhone} keyboardType="phone-pad" />
             
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Rol de Usuario <Text style={{color: colors.danger}}>*</Text></Text>
+              <Text style={styles.label}>Rol de Usuario <Text style={{color: colors.adminHighlight}}>*</Text></Text>
               {roles.length === 0 ? (
                 <Text style={{ fontSize: 13, color: colors.textLight }}>Cargando roles...</Text>
               ) : (
@@ -508,6 +571,117 @@ export default function AdminScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* User Management Section */}
+          <View style={styles.card}>
+            <View style={styles.userMgmtHeader}>
+              <Text style={styles.sectionTitle}>Gestión de Usuarios</Text>
+              <TouchableOpacity onPress={() => setShowUserManagement(!showUserManagement)}>
+                <Ionicons name={showUserManagement ? "chevron-up" : "chevron-down"} size={20} color={colors.adminHighlight} />
+              </TouchableOpacity>
+            </View>
+
+            {showUserManagement && (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Buscar por nombre o email..."
+                  value={userSearch}
+                  onChangeText={setUserSearch}
+                />
+
+                <ScrollView style={{ maxHeight: 350 }}>
+                  {Array.isArray(userList) && userList.filter((u: any) => 
+                    `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
+                  ).map((u: any) => {
+                    const isArchived = u.is_active === false || Number(u.is_active) === 0;
+                    return (
+                      <View key={u.id} style={[styles.userRow, isArchived && { backgroundColor: '#F9FAFB', opacity: 0.7 }]}>
+                        <View style={styles.userInfo}>
+                          <Text style={[styles.userName, isArchived && { color: colors.textLight }]}>{u.first_name} {u.last_name}</Text>
+                          <Text style={styles.userEmail}>{u.email}</Text>
+                          <View style={styles.userMeta}>
+                            <View style={styles.roleBadge}>
+                              <Text style={styles.roleBadgeText}>{translateRoleName(u.role?.name || 'User')}</Text>
+                            </View>
+                            {isArchived && (
+                              <View style={styles.archivedBadge}>
+                                <Text style={styles.archivedBadgeText}>Archivado</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                        <View style={styles.userActions}>
+                          <TouchableOpacity style={styles.userActionBtn} onPress={() => handleEditUserRole(u)}>
+                            <Ionicons name="create-outline" size={20} color={colors.primary} />
+                          </TouchableOpacity>
+                          {u.role?.name !== 'Admin' && (
+                            <TouchableOpacity 
+                              style={[styles.userActionBtn, isArchived && { backgroundColor: '#F0FDF4' }]} 
+                              onPress={() => handleToggleUserActive(u)}
+                            >
+                              <Ionicons 
+                                name={isArchived ? 'checkmark-circle-outline' : 'close-circle-outline'} 
+                                size={20} 
+                                color={isArchived ? '#10B981' : '#EF4444'} 
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
+          {/* Archived Issues Section */}
+          <View style={styles.card}>
+            <View style={styles.userMgmtHeader}>
+              <Text style={styles.sectionTitle}>Reportes Archivados</Text>
+              <TouchableOpacity onPress={() => setShowArchivedIssues(!showArchivedIssues)}>
+                <Ionicons name={showArchivedIssues ? "chevron-up" : "chevron-down"} size={20} color={colors.adminHighlight} />
+              </TouchableOpacity>
+            </View>
+
+            {showArchivedIssues && (
+              <View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Buscar reportes archivados..."
+                  value={archivedSearch}
+                  onChangeText={setArchivedSearch}
+                />
+
+                {loadingArchived ? (
+                  <ActivityIndicator color={colors.adminHighlight} />
+                ) : (
+                  <ScrollView style={{ maxHeight: 350 }}>
+                    {Array.isArray(archivedIssues?.data) && archivedIssues.data.filter((i: any) => 
+                      i.title.toLowerCase().includes(archivedSearch.toLowerCase())
+                    ).map((i: any) => (
+                      <View key={i.id} style={styles.userRow}>
+                        <View style={styles.userInfo}>
+                          <Text style={styles.userName}>{i.title}</Text>
+                          <Text style={styles.userEmail}>Motivo: {i.hidden_reason || 'Ninguno'}</Text>
+                        </View>
+                        <TouchableOpacity 
+                          style={styles.userActionBtn} 
+                          onPress={() => toggleIssueHiddenMutation.mutate({ issueId: i.id })}
+                        >
+                          <Ionicons name="eye-outline" size={20} color={colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {(!archivedIssues?.data || archivedIssues.data.length === 0) && (
+                      <Text style={styles.emptyText}>No hay reportes archivados</Text>
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
+
           {/* Send Campaign */}
           <CampaignSection />
 
@@ -518,36 +692,7 @@ export default function AdminScreen() {
       </ScrollView>
 
       {/* Bottom Tabs */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
-          <Ionicons name="home-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Inicio</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/map')}>
-          <Ionicons name="map-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Mapa</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tabItemCentral}>
-          <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/report')}>
-            <Ionicons name="add" size={32} color="#FFF" style={{ marginTop: -1 }} />
-          </TouchableOpacity>
-          <Text style={[styles.tabLabel, { marginTop: 4 }]}>Reportar</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-          <Ionicons name="person-outline" size={24} color={colors.textLight} />
-          <Text style={styles.tabLabel}>Perfil</Text>
-        </TouchableOpacity>
-
-        {user?.role_id === 1 && (
-          <TouchableOpacity style={styles.tabItem}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.danger} />
-            <Text style={[styles.tabLabel, { color: colors.danger }]}>Admin</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <BottomTabBar activeTab="admin" />
 
     </View>
   );
@@ -597,7 +742,7 @@ function CampaignSection() {
       />
 
       <TouchableOpacity 
-        style={[styles.adminButton, { backgroundColor: '#8B5CF6' }]} 
+        style={[styles.adminButton, { backgroundColor: colors.adminHighlight }]} 
         onPress={handleSend} 
         disabled={sendCampaignMutation.isPending}
       >
@@ -612,7 +757,7 @@ function CampaignSection() {
 
 const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  headerArea: { backgroundColor: colors.danger, paddingBottom: 20 },
+  headerArea: { backgroundColor: colors.adminHighlight, paddingBottom: 20 },
   headerTop: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, marginTop: 20 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   scrollContent: { paddingBottom: 20 },
@@ -649,16 +794,89 @@ const getStyles = (colors: any) => StyleSheet.create({
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.textTitle, backgroundColor: '#F9FAFB', marginBottom: 12 },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   iconCard: { width: 48, height: 48, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
-  iconCardSelected: { borderColor: colors.primary, backgroundColor: '#EEF4FF' },
-  adminButton: { backgroundColor: colors.danger, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, marginTop: 8 },
+  iconCardSelected: { borderColor: colors.adminHighlight, backgroundColor: colors.adminHighlight + '15' },
+  adminButton: { backgroundColor: colors.adminHighlight, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 8, marginTop: 8 },
   adminButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
-  bottomTabBar: { boxShadow: '0 -2px 10px rgba(0,0,0,0.05)', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 10, flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingBottom: 25, paddingTop: 10, justifyContent: 'space-around', position: 'absolute', bottom: 0, width: '100%' },
-  tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-  tabItemCentral: { alignItems: 'center', justifyContent: 'flex-start', flex: 1, marginTop: -25 },
-  tabLabel: { fontSize: 11, color: colors.textLight, fontWeight: '500', marginTop: 4 },
-  fabButton: { backgroundColor: colors.danger, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.danger, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, borderWidth: 4, borderColor: '#FFFFFF' },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginTop: 20,
+  },
   roleChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  roleChipSelected: { borderColor: colors.primary, backgroundColor: '#EEF4FF' },
+  roleChipSelected: { borderColor: colors.adminHighlight, backgroundColor: colors.adminHighlight + '15' },
   roleChipText: { fontSize: 13, color: colors.textSub, fontWeight: '500' },
-  roleChipTextSelected: { color: colors.primary, fontWeight: 'bold' },
+  roleChipTextSelected: { color: colors.adminHighlight, fontWeight: 'bold' },
+  userMgmtHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  userInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textTitle,
+  },
+  userEmail: {
+    fontSize: 12,
+    color: colors.textSub,
+    marginTop: 2,
+  },
+  userMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 6,
+  },
+  roleBadge: {
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  archivedBadge: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  archivedBadgeText: {
+    fontSize: 11,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  userActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  userActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
