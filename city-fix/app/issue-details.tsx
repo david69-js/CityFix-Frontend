@@ -55,7 +55,12 @@ export default function IssueDetailsScreen() {
       onError: (e: any) => {
         console.log("Assignment error:", e?.response?.data || e);
         const data = e?.response?.data;
-        alert('Error: ' + (data?.message || data?.error || 'No se pudo asignar. Verifique su conexión.'));
+        let errorMsg = data?.message || data?.error || '';
+        if (data?.errors) {
+          const details = Object.values(data.errors).flat().join('. ');
+          if (details) errorMsg += (errorMsg ? ': ' : '') + details;
+        }
+        alert('Error: ' + (errorMsg || 'No se pudo asignar. Verifique su conexión.'));
       }
     });
   };

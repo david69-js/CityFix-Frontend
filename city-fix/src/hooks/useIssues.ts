@@ -398,17 +398,12 @@ export const useAssignWorker = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ issueId, workerId, notes }: { issueId: number; workerId: number; notes?: string }) => {
-      // Create local timestamp string in YYYY-MM-DD HH:mm:ss format
-      const now = new Date();
-      const tzOffset = now.getTimezoneOffset() * 60000;
-      const localISOTime = (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 19).replace('T', ' ');
-
       const response = await apiClient.post('/assignments', {
         issue_id: issueId,
         worker_id: workerId,
         status_id: 1,
         notes: notes || '',
-        assigned_at: localISOTime
+        assigned_at: new Date().toISOString(),
       });
       return response.data;
     },
