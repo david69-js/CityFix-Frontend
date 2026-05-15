@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ export const BottomTabBar = ({ activeTab }: BottomTabBarProps) => {
   const router = useRouter();
   const { user } = useAuthStore();
   const colors = useThemeColors();
+  const lastNav = useRef(0);
 
   // Determine the primary highlight color based on context
   // Admin screen = danger (red)
@@ -26,6 +27,13 @@ export const BottomTabBar = ({ activeTab }: BottomTabBarProps) => {
 
   const highlightColor = getHighlightColor();
 
+  const navigate = (route: string) => {
+    const now = Date.now();
+    if (now - lastNav.current < 500) return;
+    lastNav.current = now;
+    router.push(route as any);
+  };
+
   const TabItem = ({ icon, label, route, tabKey }: { icon: any, label: string, route: string, tabKey: string }) => {
     const isActive = activeTab === tabKey;
     const color = isActive ? highlightColor : colors.textSub;
@@ -33,7 +41,7 @@ export const BottomTabBar = ({ activeTab }: BottomTabBarProps) => {
     return (
       <TouchableOpacity 
         style={styles.tabItem} 
-        onPress={() => activeTab !== tabKey && router.push(route as any)}
+        onPress={() => activeTab !== tabKey && navigate(route)}
       >
         <Ionicons name={isActive ? icon.replace('-outline', '') : icon} size={24} color={color} />
         <Text style={[styles.tabLabel, { color }]}>{label}</Text>
@@ -49,7 +57,7 @@ export const BottomTabBar = ({ activeTab }: BottomTabBarProps) => {
       <View style={styles.tabItemCentral}>
         <TouchableOpacity 
           style={[styles.fabButton, { backgroundColor: highlightColor, borderColor: colors.surface }]} 
-          onPress={() => router.push('/report')}
+          onPress={() => navigate('/report')}
         >
           <Ionicons name="add" size={32} color="#FFF" style={{ marginTop: -1 }} />
         </TouchableOpacity>
