@@ -460,8 +460,8 @@ export const useToggleUpvote = () => {
             upvotes_count: data.upvotes_count,
           }));
         }
-        // Actualizar en caché del feed inmediatamente sin invalidar
-        queryClient.setQueriesData({ queryKey: ['issues', 'feed'], type: 'active' }, (old: any) => {
+        // Actualizar caché del feed (incluyendo queries inactivas para que al volver al tab ya esté correcto)
+        queryClient.setQueriesData({ queryKey: ['issues', 'feed'] }, (old: any) => {
           if (!old) return old;
           const idStr = String(issueId);
           const updateItem = (item: any) => {
