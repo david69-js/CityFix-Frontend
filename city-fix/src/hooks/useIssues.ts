@@ -531,6 +531,7 @@ export const useUpdateIssueStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
       queryClient.invalidateQueries({ queryKey: ['assignments', 'my-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
@@ -552,6 +553,8 @@ export const useAssignWorker = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', variables.issueId] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     }
   });
@@ -683,6 +686,7 @@ export const useAdminUpdateIssue = () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'history', idStr] });
     },
   });
@@ -708,6 +712,7 @@ export const useToggleIssueHidden = () => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'global-stats'] }); // Actualizar contadores del dashboard
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
     },
   });
 };
