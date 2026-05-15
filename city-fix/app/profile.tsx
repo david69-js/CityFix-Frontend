@@ -6,11 +6,9 @@ import { useAuthStore } from '../src/store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import apiClient from '../src/api/axios';
 import { useMyIssues } from '../src/hooks/useIssues';
-import { formatDate } from '../src/utils/date';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
-import { fixImageUrl, getCategoryColor } from '../src/utils/helpers';
-import { STATUS_IDS } from '../src/utils/helpers';
+import { fixImageUrl } from '../src/utils/helpers';
 // import { generateSummaryPDF } from '../src/utils/pdfGenerator';
 
 const { width } = Dimensions.get('window');
@@ -246,65 +244,28 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Mis Reportes</Text>
 
           {isLoadingIssues ? (
-            <View style={[styles.card, { alignItems: 'center', padding: 20 }]}>
+            <View style={[styles.myReportsCard, { alignItems: 'center', padding: 20 }]}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={{ marginTop: 10, color: colors.textLight }}>Cargando reportes...</Text>
             </View>
-          ) : myIssues && myIssues.length > 0 ? (
-            myIssues.map(issue => (
-              <TouchableOpacity
-                key={issue.id}
-                style={styles.issueCard}
-                onPress={() => router.push(`/issue-details?id=${issue.id}`)}
-                activeOpacity={0.7}
-              >
-                {issue.images && issue.images.length > 0 && issue.images[0] ? (
-                  <Image
-                    source={{ uri: fixImageUrl(issue.images[0].full_url) || '' }}
-                    style={styles.issueImage}
-                  />
-                ) : (
-                  <View style={styles.issueImagePlaceholder}>
-                    <Ionicons name="image-outline" size={24} color={colors.textLight} />
-                  </View>
-                )}
-
-                <View style={styles.issueInfo}>
-                  <View style={styles.issueHeader}>
-                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(issue.category?.name || '', colors) }]}>
-                      <Text style={styles.categoryBadgeText}>{issue.category?.name || 'General'}</Text>
-                    </View>
-                    <Text style={styles.issueDate}>{formatDate(issue.created_at)}</Text>
-                  </View>
-
-                  <Text style={styles.issueCardTitle} numberOfLines={1}>{issue.title}</Text>
-
-                  <View style={styles.issueFooter}>
-                    <Text style={[styles.issueStatus, { color: issue.status?.color || colors.primary }]}>
-                      • {issue.status?.name || 'Pendiente'}
-                    </Text>
-                    <View style={styles.issueMetrics}>
-                      <View style={styles.metric}>
-                        <Ionicons name="thumbs-up-outline" size={14} color={colors.textLight} />
-                        <Text style={styles.metricText}>{issue.upvotes_count || 0}</Text>
-                      </View>
-                      <View style={styles.metric}>
-                        <Ionicons name="chatbubble-outline" size={14} color={colors.textLight} />
-                        <Text style={styles.metricText}>{issue.comments_count || 0}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
           ) : (
-            <View style={styles.emptyReportsCard}>
-              <Text style={styles.emptyReportsText}>Aún no has reportado ningún problema</Text>
-              <TouchableOpacity onPress={() => router.push('/report')}>
-                <Text style={styles.reportFirstLink}>Reporta Tu Primer Problema</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.myReportsCard}
+              onPress={() => router.push('/my-reports')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.myReportsIcon}>
+                <Ionicons name="document-text-outline" size={28} color={colors.primary} />
+              </View>
+              <View style={styles.myReportsInfo}>
+                <Text style={styles.myReportsTitle}>Ver todos mis reportes</Text>
+                <Text style={styles.myReportsCount}>
+                  {myIssues?.length || 0} reporte{(myIssues?.length || 0) !== 1 ? 's' : ''} • {(myIssues || []).reduce((s, i) => s + (i.upvotes_count || 0), 0)} votos
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+            </TouchableOpacity>
           )}
+
           {/* Logout Button */}
           <TouchableOpacity
             style={styles.logoutButton}
@@ -632,17 +593,33 @@ const getStyles = (colors: any) => StyleSheet.create({
     fontSize: 15,
     marginLeft: 8,
   },
-  emptyReportsCard: {
+  myReportsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 30,
-    alignItems: 'center',
+    padding: 16,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  emptyReportsText: { fontSize: 14, color: colors.textSub, marginBottom: 12 },
-  reportFirstLink: { color: colors.primary, fontWeight: 'bold', fontSize: 14 },
+  myReportsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  myReportsInfo: { flex: 1 },
+  myReportsTitle: { fontSize: 15, fontWeight: '700', color: colors.textTitle, marginBottom: 4 },
+  myReportsCount: { fontSize: 13, color: colors.textSub },
   logoutButton: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
