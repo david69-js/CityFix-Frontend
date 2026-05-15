@@ -53,6 +53,10 @@ apiClient.interceptors.response.use(
     if (error.response?.data) {
       console.log(`[AxiosError] Data:`, JSON.stringify(error.response.data));
     }
+    if (error.response?.status === 401) {
+      const { useAuthStore } = require('../store/authStore');
+      useAuthStore.getState().logout();
+    }
     return Promise.reject(error);
   }
 );

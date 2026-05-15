@@ -60,7 +60,7 @@ export interface Issue {
   category?: Category;
   status?: IssueStatus;
   images?: IssueImage[];
-  assigned_worker?: User | null;
+  assigned_workers?: User[] | null;
   
   // Counts
   upvotes_count?: number;

@@ -61,7 +61,7 @@ export type ThemeColors = {
 export const lightColors: ThemeColors = {
   primary: '#364461', // Color 5: Dark Blue/Navy
   background: '#FFFFFF', // Keeping it white as requested
-  surface: '#FFFFFF',
+  surface: '#F1F5F9',
   textTitle: '#364461', // Navy for titles
   textSub: '#4d686f', // Teal for subtext
   textLight: '#6d756a', // Sage for light text
@@ -105,8 +105,8 @@ export const lightColors: ThemeColors = {
 
   statusProgressBg: '#EBF5FB',
   statusProgressFg: '#4d686f',
-  buttonBlueBg: '#D6EAF8',
-  buttonBlueText: '#364461', 
+  buttonBlueBg: '#BFDBFE',
+  buttonBlueText: '#1E3A5F', 
   timelineLine: '#6d756a',
   orangeDot: '#e3ba6a',
   blueDot: '#4d686f',

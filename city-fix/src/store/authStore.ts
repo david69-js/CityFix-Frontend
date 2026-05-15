@@ -77,9 +77,10 @@ export const useAuthStore = create<AuthState>((set: any) => ({
             set({ user: response.data });
           }
         } catch (error) {
-          console.warn('Failed to fetch user profile automatically:', error);
-          // If the token is invalid or expired, we might want to log out
-          // but for now we just log a warning.
+          console.warn('[AuthStore] Token inválido o expirado, limpiando sesión:', error);
+          setAuthToken(null);
+          await deleteItemAsync('userToken');
+          set({ token: null, user: null });
         }
       }
     } catch (e) {

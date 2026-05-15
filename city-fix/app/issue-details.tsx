@@ -450,8 +450,8 @@ export default function IssueDetailsScreen() {
               </View>
             </View>
 
-            {/* Quick Status Update for Workers and Admins */}
-            {(user?.role_id === 1 || user?.role_id === 2) && (
+            {/* Quick Status Update for Admins and assigned workers */}
+            {user?.role_id === 1 || (user?.role_id === 2 && issue?.assigned_workers?.some(w => w.id === user?.id)) ? (
               <View style={styles.adminActionContainer}>
                 <Text style={styles.adminActionLabel}>Actualizar Estado (Gestión):</Text>
                 <View style={styles.statusButtonsRow}>
@@ -478,7 +478,7 @@ export default function IssueDetailsScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            )}
+            ) : null}
 
             {/* Separator if both sections are present */}
             {user?.role_id === 1 && (
@@ -722,14 +722,18 @@ export default function IssueDetailsScreen() {
                 </View>
               </View>
 
-              {issue.assigned_worker && (
+              {issue.assigned_workers && issue.assigned_workers.length > 0 && (
                 <View style={[styles.infoRow, { marginBottom: 0 }]}>
                   <Ionicons name="construct-outline" size={22} color={colors.workerGreen} style={styles.infoIcon} />
                   <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoLabel}>Trabajador Asignado</Text>
-                    <Text style={[styles.infoValue, { color: colors.workerGreen, fontWeight: '700' }]}>
-                      {issue.assigned_worker.first_name} {issue.assigned_worker.last_name}
-                    </Text>
+                    <Text style={styles.infoLabel}>Trabajador(es) Asignado(s)</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                      {issue.assigned_workers.map((w: any, i: number) => (
+                        <Text key={w.id} style={[styles.infoValue, { color: colors.workerGreen, fontWeight: '700' }]}>
+                          {i > 0 ? ', ' : ''}{w.first_name} {w.last_name || ''}
+                        </Text>
+                      ))}
+                    </View>
                   </View>
                 </View>
               )}
