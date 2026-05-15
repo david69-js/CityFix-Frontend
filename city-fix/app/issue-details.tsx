@@ -560,7 +560,7 @@ export default function IssueDetailsScreen() {
                         editDeletedImages.includes(img.id) && styles.editImageThumbnailDeleted
                       ]}
                     >
-                      <Image source={{ uri: fixImageUrl(img.image_url) ?? '' }} style={styles.thumbnailImg} />
+                      <Image source={{ uri: fixImageUrl(img.full_url || img.image_url) ?? '' }} style={styles.thumbnailImg} />
                       {editDeletedImages.includes(img.id) && (
                         <View style={styles.deletedOverlay}>
                           <Ionicons name="trash" size={24} color="#FFF" />

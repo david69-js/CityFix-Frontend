@@ -35,11 +35,10 @@ export const fixImageUrl = (url: string | null | undefined) => {
   
   // 1. If it's a relative path, make it absolute
   if (!finalUrl.startsWith('http')) {
-    if (finalUrl.startsWith('storage/')) {
-      finalUrl = `${BASE_URL}/${finalUrl}`;
-    } else {
-      finalUrl = `${BASE_URL}/storage/${finalUrl}`;
-    }
+    const cleanUrl = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
+    finalUrl = cleanUrl.startsWith('/storage/')
+      ? `${BASE_URL}${cleanUrl}`
+      : `${BASE_URL}/storage${cleanUrl}`;
   }
 
   // 2. Fix Backend configuration errors (e.g., returning http://localhost instead of production URL)
