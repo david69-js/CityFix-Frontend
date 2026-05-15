@@ -1,7 +1,8 @@
 import React from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform, Alert, RefreshControl } from 'react-native';
+// import * as ImageManipulator from 'expo-image-manipulator';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden, useUpdateIssue } from '../src/hooks/useIssues';
@@ -24,7 +25,7 @@ export default function IssueDetailsScreen() {
   const colors = useThemeColors();
   const styles = getStyles(colors);
   
-  const { data: issue, isLoading, error, refetch: refetchDetails } = useIssueDetails(id as string, user?.id);
+  const { data: issue, isLoading, error, refetch: refetchDetails, isFetching } = useIssueDetails(id as string, user?.id);
   const { data: historyData } = useIssueHistory(id as string);
   const { data: commentsData } = useIssueComments(id as string);
   const addCommentMutation = useAddComment();
@@ -40,7 +41,14 @@ export default function IssueDetailsScreen() {
   const [newComment, setNewComment] = React.useState('');
   const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
   const [assignmentNotes, setAssignmentNotes] = React.useState('');
-  const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
+  // State for manual pull-to-refresh
+  const [isManualRefresh, setIsManualRefresh] = React.useState(false);
+
+  const handleRefresh = async () => {
+    setIsManualRefresh(true);
+    await refetchDetails();
+    setIsManualRefresh(false);
+  };
 
   // Editing states
   const [isEditing, setIsEditing] = React.useState(false);
@@ -50,6 +58,8 @@ export default function IssueDetailsScreen() {
   const [editLocation, setEditLocation] = React.useState('');
   const [editLatitude, setEditLatitude] = React.useState<number | null>(null);
   const [editLongitude, setEditLongitude] = React.useState<number | null>(null);
+  const [editNewImages, setEditNewImages] = React.useState<any[]>([]);
+  const [editDeletedImages, setEditDeletedImages] = React.useState<number[]>([]);
   const [isLocating, setIsLocating] = React.useState(false);
 
   const scrollRef = React.useRef<ScrollView>(null);
@@ -65,6 +75,8 @@ export default function IssueDetailsScreen() {
       setEditLocation(issue.location);
       setEditLatitude(issue.latitude);
       setEditLongitude(issue.longitude);
+      setEditNewImages([]);
+      setEditDeletedImages([]);
     }
   }, [issue, isEditing]);
 
@@ -97,6 +109,54 @@ export default function IssueDetailsScreen() {
       setIsLocating(false);
     }
   };
+  const handlePickImages = async () => {
+    Alert.alert(
+      'Añadir Imagen',
+      '¿De dónde quieres obtener la imagen?',
+      [
+        {
+          text: 'Cámara',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Error', 'Se requiere permiso para acceder a la cámara');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setEditNewImages(prev => [...prev, result.assets[0]]);
+            }
+          }
+        },
+        {
+          text: 'Galería',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: 'images',
+              allowsMultipleSelection: false,
+              allowsEditing: true,
+              quality: 0.8,
+            });
+            if (!result.canceled) {
+              setEditNewImages(prev => [...prev, result.assets[0]]);
+            }
+          }
+        },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
+  };
+
+  const toggleDeleteImage = (imageId: number) => {
+    setEditDeletedImages(prev => 
+      prev.includes(imageId) 
+        ? prev.filter(id => id !== imageId) 
+        : [...prev, imageId]
+    );
+  };
 
   const handleUpdateIssue = async () => {
     if (!issue) return;
@@ -110,6 +170,15 @@ export default function IssueDetailsScreen() {
             location: editLocation,
             latitude: editLatitude || issue.latitude,
             longitude: editLongitude || issue.longitude,
+            images: editNewImages.map(img => {
+              const extension = img.uri.split('.').pop()?.toLowerCase();
+              return {
+                uri: img.uri,
+                name: `photo_${Date.now()}.${extension === 'heic' ? 'jpg' : extension}`,
+                type: 'image/jpeg',
+              };
+            }),
+            deleted_images: editDeletedImages.length > 0 ? editDeletedImages : undefined,
           }
       });
       setIsEditing(false);
@@ -304,22 +373,40 @@ export default function IssueDetailsScreen() {
           ref={scrollRef}
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={isManualRefresh} onRefresh={handleRefresh} tintColor={colors.primary} />
+          }
         >
           
           {/* Main Image */}
           <View>
-            {mainImage ? (
-              <Image 
-                source={{ uri: mainImage }} 
-                style={styles.heroImage} 
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="image-outline" size={48} color={colors.textLight} />
-                <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
-              </View>
-            )}
+            <TouchableOpacity 
+              disabled={!isEditing} 
+              onPress={handlePickImages}
+              activeOpacity={0.8}
+            >
+              {mainImage ? (
+                <Image 
+                  source={{ uri: mainImage }} 
+                  style={styles.heroImage} 
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="image-outline" size={48} color={colors.textLight} />
+                  <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
+                </View>
+              )}
+
+              {isEditing && (
+                <View style={styles.editImageOverlay}>
+                  <View style={styles.editImageCircle}>
+                    <Ionicons name="camera" size={32} color="#FFF" />
+                    <Text style={styles.editImageText}>Toca para añadir fotos</Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.contentPadding}>
@@ -457,6 +544,54 @@ export default function IssueDetailsScreen() {
             </View>
 
             {/* Category Selector in Edit Mode - REDESIGN */}
+            {isEditing && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[styles.adminActionLabel, { marginBottom: 10 }]}>Gestionar Imágenes:</Text>
+                
+                {/* Current Images */}
+                <Text style={{ fontSize: 12, color: colors.textSub, marginBottom: 8 }}>Imágenes actuales (toca para eliminar/restaurar):</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  {issue.images?.map((img) => (
+                    <TouchableOpacity 
+                      key={img.id} 
+                      onPress={() => toggleDeleteImage(img.id)}
+                      style={[
+                        styles.editImageThumbnail, 
+                        editDeletedImages.includes(img.id) && styles.editImageThumbnailDeleted
+                      ]}
+                    >
+                      <Image source={{ uri: fixImageUrl(img.image_url) ?? '' }} style={styles.thumbnailImg} />
+                      {editDeletedImages.includes(img.id) && (
+                        <View style={styles.deletedOverlay}>
+                          <Ionicons name="trash" size={24} color="#FFF" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* New Images */}
+                <Text style={{ fontSize: 12, color: colors.textSub, marginBottom: 8 }}>Nuevas imágenes:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                  {editNewImages.map((img, idx) => (
+                    <View key={idx} style={styles.editImageThumbnail}>
+                      <Image source={{ uri: img.uri }} style={styles.thumbnailImg} />
+                      <TouchableOpacity 
+                        style={styles.removeNewImageBtn} 
+                        onPress={() => setEditNewImages(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        <Ionicons name="close-circle" size={20} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity style={styles.addImageBtn} onPress={handlePickImages}>
+                    <Ionicons name="camera" size={24} color={colors.primary} />
+                    <Text style={styles.addImageBtnText}>Añadir</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            )}
+
             {isEditing && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={[styles.adminActionLabel, { marginBottom: 10 }]}>Seleccionar Categoría:</Text>
@@ -1367,5 +1502,52 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: colors.textLight,
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  editImageThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editImageThumbnailDeleted: {
+    borderColor: colors.error,
+    opacity: 0.6,
+  },
+  thumbnailImg: {
+    width: '100%',
+    height: '100%',
+  },
+  deletedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(239, 68, 68, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeNewImageBtn: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 10,
+  },
+  addImageBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '05',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addImageBtnText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginTop: 4,
   },
 });

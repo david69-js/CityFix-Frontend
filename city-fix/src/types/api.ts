@@ -25,7 +25,7 @@ export interface IssueStatus {
 export interface IssueImage {
   id: number;
   issue_id: number;
-  file_path: string;
+  image_url: string;
   full_url: string;
 }
 
@@ -77,4 +77,35 @@ export interface PaginatedResponse<T> {
   last_page: number;
   per_page: number;
   total: number;
+}
+
+export interface CreateIssuePayload {
+  category_id: number;
+  title: string;
+  description: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  image?: {
+    uri: string;
+    type: string;
+    name: string;
+  };
+}
+
+export interface UpdateIssuePayload {
+  title?: string;
+  description?: string;
+  category_id?: number;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  status_id?: number;
+  images?: (string | { uri: string; name: string; type: string })[];
+  deleted_images?: number[];
+  is_hidden?: boolean;
+}
+
+export interface AdminUpdateIssuePayload extends UpdateIssuePayload {
+  hidden_reason?: string;
 }

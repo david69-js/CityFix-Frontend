@@ -1,6 +1,7 @@
+import { Platform } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
-import { Issue, PaginatedResponse, IssueComment } from '../types/api';
+import { Issue, CreateIssuePayload, PaginatedResponse, IssueComment, UpdateIssuePayload, AdminUpdateIssuePayload } from '../types/api';
 import { STATUS_IDS } from '../utils/helpers';
 import { useAuthStore } from '../store/authStore';
 import { getItemAsync, setItemAsync } from '../utils/storage';
@@ -27,19 +28,6 @@ const saveLocalVote = async (issueId: string | number, hasVoted: boolean) => {
 };
 // ---------------------------------
 
-export interface CreateIssuePayload {
-  category_id: number;
-  title: string;
-  description: string;
-  location: string;
-  latitude: string | number;
-  longitude: string | number;
-  image?: {
-    uri: string;
-    name: string;
-    type: string;
-  } | null;
-}
 
 export const useCreateIssue = () => {
   const queryClient = useQueryClient();
@@ -57,9 +45,11 @@ export const useCreateIssue = () => {
 
       if (payload.image) {
         // En React Native, adjuntar un objeto con uri, type y name funciona como un Blob.
+        let imageType = payload.image.type || 'image/jpeg';
+        
         formData.append('image', {
           uri: payload.image.uri,
-          type: payload.image.type,
+          type: imageType,
           name: payload.image.name,
         } as any);
       }
@@ -82,43 +72,72 @@ export const useUpdateIssue = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ issueId, payload }: { issueId: number; payload: Partial<CreateIssuePayload> }) => {
+    mutationFn: async ({ issueId, payload }: { issueId: number; payload: UpdateIssuePayload }) => {
       const formData = new FormData();
       
-      if (payload.title) formData.append('title', payload.title);
-      if (payload.description) formData.append('description', payload.description);
-      if (payload.category_id) formData.append('category_id', payload.category_id.toString());
-      if (payload.location) formData.append('location', payload.location);
-      if (payload.latitude) formData.append('latitude', payload.latitude.toString());
-      if (payload.longitude) formData.append('longitude', payload.longitude.toString());
+      if (payload.title !== undefined) formData.append('title', payload.title);
+      if (payload.description !== undefined) formData.append('description', payload.description);
+      if (payload.category_id !== undefined) formData.append('category_id', payload.category_id.toString());
+      if (payload.location !== undefined) formData.append('location', payload.location);
+      if (payload.latitude !== undefined) formData.append('latitude', payload.latitude.toString());
+      if (payload.longitude !== undefined) formData.append('longitude', payload.longitude.toString());
+      if (payload.status_id !== undefined) formData.append('status_id', payload.status_id.toString());
+      if (payload.is_hidden !== undefined) formData.append('is_hidden', payload.is_hidden ? '1' : '0');
 
-      if (payload.image) {
-        formData.append('image', {
-          uri: payload.image.uri,
-          type: payload.image.type,
-          name: payload.image.name,
-        } as any);
+      // Imágenes nuevas (archivos)
+      if (payload.images) {
+        payload.images.forEach((img, index) => {
+          if (typeof img === 'object' && img.uri) {
+            const fileName = `image_${index}_${Date.now()}.jpg`;
+            formData.append(`images[${index}]`, {
+              uri: img.uri,
+              type: 'image/jpeg',
+              name: fileName,
+            } as any);
+          }
+        });
       }
 
-      // IMPORTANTE: Laravel y otros frameworks requieren POST + _method: PUT 
-      // para procesar archivos en una actualización.
+      // IDs de imágenes a eliminar
+      if (payload.deleted_images && payload.deleted_images.length > 0) {
+        payload.deleted_images.forEach((id, index) => {
+          formData.append('deleted_images[]', id.toString());
+        });
+      }
+
       formData.append('_method', 'PUT');
 
-      console.log(`[DEBUG] Enviando actualización para issue ${issueId}...`);
+      const token = useAuthStore.getState().token;
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
 
-      const response = await apiClient.post(`/issues/${issueId}`, formData, {
+      console.log(`[DEBUG] Intentando subida crítica via FETCH a: ${API_URL}/issues/${issueId}`);
+
+      const response = await fetch(`${API_URL}/issues/${issueId}`, {
+        method: 'POST',
+        body: formData,
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
       });
 
-      return response.data;
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('[DEBUG] Error en subida FETCH:', data);
+        throw new Error(data.message || 'Error en la actualización');
+      }
+
+      console.log(`[DEBUG] ¡ÉXITO! Respuesta del servidor:`, JSON.stringify(data.images));
+
+      return data;
     },
     onSuccess: (_, { issueId }) => {
       const idStr = String(issueId);
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
     },
   });
 };
@@ -528,26 +547,56 @@ export const useAdminIssues = (filters?: AdminIssuesFilters) => {
   });
 };
 
-export interface AdminUpdateIssuePayload {
-  title?: string;
-  description?: string;
-  category_id?: number;
-  location?: string;
-  latitude?: number;
-  longitude?: number;
-  status_id?: number;
-}
-
 /**
  * Edit any issue as admin.
- * PUT /api/admin/issues/{id}
+ * POST /api/admin/issues/{id} with _method: PUT
  */
 export const useAdminUpdateIssue = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ issueId, payload }: { issueId: number; payload: AdminUpdateIssuePayload }) => {
-      const response = await apiClient.put(`/admin/issues/${issueId}`, payload);
+      const formData = new FormData();
+      
+      if (payload.title !== undefined) formData.append('title', payload.title);
+      if (payload.description !== undefined) formData.append('description', payload.description);
+      if (payload.category_id !== undefined) formData.append('category_id', payload.category_id.toString());
+      if (payload.location !== undefined) formData.append('location', payload.location);
+      if (payload.latitude !== undefined) formData.append('latitude', payload.latitude.toString());
+      if (payload.longitude !== undefined) formData.append('longitude', payload.longitude.toString());
+      if (payload.status_id !== undefined) formData.append('status_id', payload.status_id.toString());
+      if (payload.is_hidden !== undefined) formData.append('is_hidden', payload.is_hidden ? '1' : '0');
+      if (payload.hidden_reason !== undefined) formData.append('hidden_reason', payload.hidden_reason);
+
+      // Imágenes nuevas (archivos)
+      if (payload.images) {
+        payload.images.forEach((img, index) => {
+          if (typeof img === 'object' && img.uri) {
+            const fullUri = img.uri;
+            const fileName = `admin_image_${index}_${Date.now()}.jpg`;
+
+            formData.append(`images[${index}]`, {
+              uri: fullUri,
+              type: 'image/jpeg',
+              name: fileName,
+            } as any);
+          }
+        });
+      }
+
+      // IDs de imágenes a eliminar
+      if (payload.deleted_images && payload.deleted_images.length > 0) {
+        payload.deleted_images.forEach((id, index) => {
+          formData.append('deleted_images[]', id.toString());
+        });
+      }
+
+      // IMPORTANTE: Laravel y otros frameworks requieren POST + _method: PUT 
+      // para procesar archivos en una actualización.
+      formData.append('_method', 'PUT');
+
+      const response = await apiClient.post(`/admin/issues/${issueId}`, formData);
+
       return response.data;
     },
     onSuccess: (_, { issueId }) => {

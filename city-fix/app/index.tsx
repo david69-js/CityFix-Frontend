@@ -76,11 +76,16 @@ export default function CityReporterDashboard() {
     resolved: globalStats?.resolved || 0,
   };
 
-  const handleRefresh = () => {
+  // State for manual pull-to-refresh
+  const [isManualRefresh, setIsManualRefresh] = React.useState(false);
+
+  const handleRefresh = async () => {
+    setIsManualRefresh(true);
     setSearchText('');
     setActiveStatusFilter(null);
     setSelectedUserId(undefined);
-    refetch();
+    await refetch();
+    setIsManualRefresh(false);
   };
 
   const handleSelectUserFilter = () => {
@@ -125,7 +130,7 @@ export default function CityReporterDashboard() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Platform.OS === 'android' ? 120 : 40 }]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={isManualRefresh} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
 

@@ -29,10 +29,11 @@ export const fixImageUrl = (url: string | null | undefined) => {
 
   let finalUrl = url;
 
-  // Extract base URL from API URL (e.g., https://cityfix-backend-production.up.railway.app)
-  const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
-  const BASE_URL = API_URL.replace(/\/api\/?$/, '');
-  
+  // Extract base URL from API URL
+  const BASE_URL = process.env.EXPO_PUBLIC_API_URL 
+    ? process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '') 
+    : 'http://localhost:8888';
+
   // 1. If it's a relative path, make it absolute
   if (!finalUrl.startsWith('http')) {
     if (finalUrl.startsWith('storage/')) {
@@ -42,14 +43,8 @@ export const fixImageUrl = (url: string | null | undefined) => {
     }
   }
 
-  // 2. Fix Backend configuration errors (e.g., returning http://localhost instead of production URL)
-  // If we have a production API URL but the image URL points to localhost, swap it.
-  if (BASE_URL.includes('up.railway.app') && finalUrl.includes('localhost')) {
-    finalUrl = finalUrl.replace(/http:\/\/localhost/g, BASE_URL);
-  }
-
-  // 3. Android-only patch for local development (only if we are NOT on production)
-  if (Platform.OS === 'android' && !BASE_URL.includes('up.railway.app')) {
+  // 2. Android-only patch for local development
+  if (Platform.OS === 'android') {
     finalUrl = finalUrl.replace(/localhost|127\.0\.0\.1/g, '10.0.2.2');
   }
 
