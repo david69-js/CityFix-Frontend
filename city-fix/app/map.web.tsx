@@ -26,7 +26,7 @@ export default function MapScreen() {
   const { data: feedData, isLoading } = useIssuesFeed(100);
   const [activeFilter, setActiveFilter] = useState('Todos');
 
-  const allReports = (feedData?.data || []).filter(r => !r.is_hidden);
+  const allReports = (feedData?.pages?.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
 
   const filteredReports = allReports.filter(report => {
     if (activeFilter === 'Todos') return true;

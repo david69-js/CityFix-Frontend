@@ -39,7 +39,7 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const allReports = (feedData?.data || []).filter(r => !r.is_hidden);
+  const allReports = (feedData?.pages?.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
 
   // Request user location on mount
   useEffect(() => {
