@@ -257,8 +257,8 @@ export default function CityReporterDashboard() {
                   onPress={() => setSelectedUserId(selectedUserId === u.id ? undefined : u.id)}
                 >
                   <View style={[styles.avatarCircle, selectedUserId === u.id && { borderColor: '#FFF' }]}>
-                    {u.avatar ? (
-                      <Image source={{ uri: fixImageUrl(u.avatar) }} style={styles.chipAvatar} />
+                    {(u.avatar_url || u.avatar) ? (
+                      <Image source={{ uri: u.avatar_url || fixImageUrl(u.avatar) }} style={styles.chipAvatar} />
                     ) : (
                       <Text style={[styles.avatarInitial, selectedUserId === u.id && { color: '#FFF' }]}>
                         {u.first_name?.charAt(0) || u.email?.charAt(0) || '?'}

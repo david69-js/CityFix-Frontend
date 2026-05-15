@@ -748,7 +748,7 @@ export default function IssueDetailsScreen() {
                     <View style={styles.commentHeader}>
                       <Image 
                         source={{ 
-                          uri: (comment.user?.avatar ? fixImageUrl(comment.user.avatar) : null) || 
+                          uri: (comment.user?.avatar_url || (comment.user?.avatar ? fixImageUrl(comment.user.avatar) : null)) || 
                                `https://ui-avatars.com/api/?name=${comment.user?.first_name || 'U'}+${comment.user?.last_name || ''}&background=random&color=fff` 
                         }} 
                         style={styles.commentAvatar} 
