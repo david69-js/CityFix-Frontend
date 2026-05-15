@@ -251,11 +251,17 @@ export const useIssueDetails = (id: number | string | null, userId?: number) => 
       let fallbackUpvotes = undefined;
       let fallbackHasVoted = undefined;
 
-      if (issueData.upvotes_count === undefined) {
-        const feedQueries = queryClient.getQueriesData<PaginatedResponse<Issue>>({ queryKey: ['issues', 'feed'] });
+      if (issueData.upvotes_count == null) {
+        const feedQueries = queryClient.getQueriesData<any>({ queryKey: ['issues', 'feed'] });
         for (const [_, feed] of feedQueries) {
-          const found = feed?.data?.find(i => String(i.id) === String(id));
-          if (found && found.upvotes_count !== undefined) {
+          if (!feed) continue;
+
+          const items: Issue[] = feed.pages
+            ? feed.pages.flatMap((p: any) => p.data || [])
+            : feed.data || [];
+
+          const found = items.find(i => String(i.id) === String(id));
+          if (found && found.upvotes_count != null) {
             fallbackUpvotes = found.upvotes_count;
             fallbackHasVoted = found.has_voted;
             console.log(`[DEBUG] Fallback encontrado en feed: upvotes=${fallbackUpvotes}, voted=${fallbackHasVoted}`);
@@ -373,27 +379,54 @@ export const useToggleUpvote = () => {
         queryClient.setQueryData<Issue>(detailsQueryKey, {
           ...previousIssue,
           has_voted: newHasVoted,
-          upvotes_count: (previousIssue.upvotes_count || 0) + (previousIssue.has_voted ? -1 : 1),
+          upvotes_count: Math.max(0, (previousIssue.upvotes_count || 0) + (previousIssue.has_voted ? -1 : 1)),
         });
       }
 
       // También actualizar en el feed si aparece ahí
-      queryClient.setQueriesData<PaginatedResponse<Issue>>({ queryKey: ['issues', 'feed'] }, (old) => {
-        if (!old || !old.data) return old;
-        return {
-          ...old,
-          data: old.data.map(item => {
-            if (String(item.id) === idStr) {
-              const currentlyVoted = !!item.has_voted;
-              return {
-                ...item,
-                has_voted: !currentlyVoted,
-                upvotes_count: (item.upvotes_count || 0) + (currentlyVoted ? -1 : 1),
-              };
-            }
-            return item;
-          })
-        };
+      queryClient.setQueriesData<PaginatedResponse<Issue> | { pages: PaginatedResponse<Issue>[]; pageParams: unknown[] }>({ queryKey: ['issues', 'feed'] }, (old) => {
+        if (!old) return old;
+
+        // Handle InfiniteData structure (useInfiniteQuery)
+        if ('pages' in old && Array.isArray((old as any).pages)) {
+          return {
+            ...old,
+            pages: (old as any).pages.map((page: PaginatedResponse<Issue>) => ({
+              ...page,
+              data: page.data.map(item => {
+                if (String(item.id) === idStr) {
+                  const currentlyVoted = !!item.has_voted;
+                  return {
+                    ...item,
+                    has_voted: !currentlyVoted,
+                    upvotes_count: Math.max(0, (item.upvotes_count || 0) + (currentlyVoted ? -1 : 1)),
+                  };
+                }
+                return item;
+              })
+            }))
+          };
+        }
+
+        // Handle regular PaginatedResponse (useQuery)
+        if ('data' in old && Array.isArray((old as any).data)) {
+          return {
+            ...old,
+            data: (old as any).data.map((item: Issue) => {
+              if (String(item.id) === idStr) {
+                const currentlyVoted = !!item.has_voted;
+                return {
+                  ...item,
+                  has_voted: !currentlyVoted,
+                  upvotes_count: Math.max(0, (item.upvotes_count || 0) + (currentlyVoted ? -1 : 1)),
+                };
+              }
+              return item;
+            })
+          };
+        }
+
+        return old;
       });
 
       return { previousIssue, detailsQueryKey };

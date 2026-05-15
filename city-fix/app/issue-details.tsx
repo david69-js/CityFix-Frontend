@@ -890,7 +890,7 @@ export default function IssueDetailsScreen() {
             {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>
             {(() => {
-              const allIssues = feedData?.data || [];
+              const allIssues = feedData?.pages?.flatMap((p: any) => p.data) || feedData?.data || [];
               
               if (!issue.latitude || !issue.longitude) return (
                 <View style={styles.emptyCard}>
