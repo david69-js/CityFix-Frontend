@@ -128,6 +128,8 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   unreadItem: {
     backgroundColor: colors.unreadBg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.blueInfluencer,
   },
   iconContainer: {
     width: 48,
@@ -159,7 +161,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.blueInfluencer,
     marginLeft: 8,
   },
   message: {

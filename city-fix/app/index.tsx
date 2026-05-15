@@ -179,7 +179,11 @@ export default function CityReporterDashboard() {
                     style={styles.bellGlass}
                   >
                     <Ionicons name="notifications-outline" size={24} color="#FFF" />
-                    {unreadCount > 0 && <View style={styles.notificationDot} />}
+                    {unreadCount > 0 && (
+                      <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                      </View>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -468,16 +472,24 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  notificationDot: {
+  notificationBadge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#EF4444',
-    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
     borderColor: colors.primary,
+  },
+  notificationBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   headerTitle: {
     fontSize: 38,

@@ -171,7 +171,7 @@ export const darkColors: ThemeColors = {
   orangeDot: '#e3ba6a',
   blueDot: '#7ec8e3',
 
-  unreadBg: '#1B263B',
+  unreadBg: '#253248',
   adminHighlight: '#7ec8e3',
   workerHighlight: '#8a9a8a',
   divider: '#364461',
