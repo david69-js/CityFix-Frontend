@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Image, ActivityIndicator, TextInput, Keyboard, Platform, Alert, RefreshControl } from 'react-native';
@@ -329,7 +329,8 @@ export default function IssueDetailsScreen() {
     );
   }
 
-  const mainImage = fixImageUrl(issue.images && issue.images.length > 0 ? issue.images[0].full_url : null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const allImages = issue.images?.map(img => ({ url: fixImageUrl(img.full_url || img.image_url), id: img.id })) || [];
 
   return (
     <View style={styles.safeArea}>
@@ -378,35 +379,64 @@ export default function IssueDetailsScreen() {
           }
         >
           
-          {/* Main Image */}
+          {/* Image Carousel */}
           <View>
-            <TouchableOpacity 
-              disabled={!isEditing} 
-              onPress={handlePickImages}
-              activeOpacity={0.8}
-            >
-              {mainImage ? (
-                <Image 
-                  source={{ uri: mainImage }} 
-                  style={styles.heroImage} 
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.heroImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="image-outline" size={48} color={colors.textLight} />
-                  <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
-                </View>
-              )}
+            {allImages.length > 0 ? (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) => {
+                    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                    setActiveImageIndex(index);
+                  }}
+                >
+                  {allImages.map((img, idx) => (
+                    <TouchableOpacity
+                      key={img.id || idx}
+                      disabled={!isEditing}
+                      onPress={handlePickImages}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: img.url }}
+                        style={[styles.heroImage, { width }]}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
-              {isEditing && (
-                <View style={styles.editImageOverlay}>
-                  <View style={styles.editImageCircle}>
-                    <Ionicons name="camera" size={32} color="#FFF" />
-                    <Text style={styles.editImageText}>Toca para añadir fotos</Text>
+                {allImages.length > 1 && (
+                  <View style={styles.dotsContainer}>
+                    {allImages.map((_, idx) => (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.dot,
+                          idx === activeImageIndex && styles.dotActive,
+                        ]}
+                      />
+                    ))}
                   </View>
+                )}
+              </>
+            ) : (
+              <View style={[styles.heroImage, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="image-outline" size={48} color={colors.textLight} />
+                <Text style={{ color: colors.textLight, marginTop: 8 }}>Sin imagen adjunta</Text>
+              </View>
+            )}
+
+            {isEditing && (
+              <TouchableOpacity style={styles.editImageOverlay} onPress={handlePickImages}>
+                <View style={styles.editImageCircle}>
+                  <Ionicons name="camera" size={32} color="#FFF" />
+                  <Text style={styles.editImageText}>Toca para añadir fotos</Text>
                 </View>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.contentPadding}>
@@ -967,6 +997,25 @@ const getStyles = (colors: any) => StyleSheet.create({
   heroImage: {
     width: '100%',
     height: 220,
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  dotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   contentPadding: {
     paddingHorizontal: 20,

@@ -86,11 +86,11 @@ export interface CreateIssuePayload {
   location: string;
   latitude: number;
   longitude: number;
-  image?: {
+  images?: {
     uri: string;
     type: string;
     name: string;
-  };
+  }[];
 }
 
 export interface UpdateIssuePayload {

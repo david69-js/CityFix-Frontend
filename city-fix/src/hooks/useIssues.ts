@@ -43,15 +43,15 @@ export const useCreateIssue = () => {
       formData.append('latitude', payload.latitude.toString());
       formData.append('longitude', payload.longitude.toString());
 
-      if (payload.image) {
-        // En React Native, adjuntar un objeto con uri, type y name funciona como un Blob.
-        let imageType = payload.image.type || 'image/jpeg';
-        
-        formData.append('image', {
-          uri: payload.image.uri,
-          type: imageType,
-          name: payload.image.name,
-        } as any);
+      if (payload.images) {
+        payload.images.forEach((img, index) => {
+          const imageType = img.type || 'image/jpeg';
+          formData.append(`images[${index}]`, {
+            uri: img.uri,
+            type: imageType,
+            name: img.name,
+          } as any);
+        });
       }
 
       const response = await apiClient.post('/issues', formData, {

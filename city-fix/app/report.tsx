@@ -41,13 +41,24 @@ export default function ReportIssueScreen() {
   const [locationText, setLocationText] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const createIssueMutation = useCreateIssue();
   const reverseGeocodeMutation = useReverseGeocodeMutation();
+
+  const addImages = (newUris: string[]) => {
+    setImageUris(prev => {
+      const combined = [...prev, ...newUris];
+      return combined.slice(0, 5);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setImageUris(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleLaunchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -64,12 +75,11 @@ export default function ReportIssueScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        // Check size if available (in bytes)
         if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-          Alert.alert('Imagen muy grande', 'La imagen seleccionada excede los 5MB. Por favor elige una más pequeña o toma una nueva.');
+          Alert.alert('Imagen muy grande', 'La imagen seleccionada excede los 5MB.');
           return;
         }
-        setImageUri(asset.uri);
+        addImages([asset.uri]);
       }
     } catch (error: any) {
       if (error.message.includes('Camera not available')) {
@@ -90,27 +100,33 @@ export default function ReportIssueScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: true,
+      allowsMultipleSelection: true,
       quality: 0.8,
+      selectionLimit: 5,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Imagen muy grande', 'La imagen seleccionada excede los 5MB.');
-        return;
+      const validAssets = result.assets.filter(
+        a => !a.fileSize || a.fileSize <= 5 * 1024 * 1024
+      );
+      addImages(validAssets.map(a => a.uri));
+      if (validAssets.length < result.assets.length) {
+        Alert.alert('Algunas imágenes fueron omitidas', 'Las imágenes mayores a 5MB no se incluyeron.');
       }
-      setImageUri(asset.uri);
     }
   };
 
   const handlePickImage = () => {
+    const canAddMore = imageUris.length < 5;
     Alert.alert(
       'Adjuntar evidencia',
-      '¿Deseas tomar una foto nueva o elegir una de tu galería?',
+      imageUris.length === 0
+        ? '¿Deseas tomar una foto nueva o elegir de tu galería?'
+        : `Tienes ${imageUris.length}/5 imágenes. ¿Qué deseas hacer?`,
       [
-        { text: 'Tomar Foto', onPress: handleLaunchCamera },
-        { text: 'Elegir de Galería', onPress: handleLaunchGallery },
+        { text: 'Tomar Foto', onPress: handleLaunchCamera, style: 'default' },
+        { text: canAddMore ? 'Elegir de Galería' : 'Elegir de Galería (límite alcanzado)', onPress: canAddMore ? handleLaunchGallery : undefined, style: 'default' },
+        ...(imageUris.length > 0 ? [{ text: 'Quitar todas', onPress: () => setImageUris([]), style: 'destructive' as const }] : []),
         { text: 'Cancelar', style: 'cancel' },
       ]
     );
@@ -170,19 +186,13 @@ export default function ReportIssueScreen() {
       return setErrorMessage('Debes obtener tu ubicación en el mapa (botón de ubicación).');
     }
 
-    // Prepare image if selected
-    let imageFile = null;
-    if (imageUri) {
-      const filename = imageUri.split('/').pop() || 'photo.jpg';
+    // Prepare images if selected
+    const imageFiles = imageUris.map(uri => {
+      const filename = uri.split('/').pop() || 'photo.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : `image/jpeg`;
-      
-      imageFile = {
-        uri: imageUri,
-        name: filename,
-        type,
-      };
-    }
+      return { uri, name: filename, type };
+    });
 
     // Call API Route
     createIssueMutation.mutate({
@@ -192,7 +202,7 @@ export default function ReportIssueScreen() {
       location: locationText,
       latitude,
       longitude,
-      image: imageFile,
+      images: imageFiles.length > 0 ? imageFiles : undefined,
     }, {
       onSuccess: () => {
         router.replace('/');
@@ -202,9 +212,10 @@ export default function ReportIssueScreen() {
         const status = e?.response?.status;
 
         if (status === 413) {
-          setErrorMessage('La imagen es demasiado pesada para el servidor. Intenta con una foto más pequeña.');
-        } else if (data?.errors?.image) {
-          setErrorMessage('El servidor rechaza la imagen: ' + data.errors.image[0]);
+          setErrorMessage('Una o más imágenes son demasiado pesadas. Intenta con fotos más pequeñas.');
+        } else if (data?.errors) {
+          const firstError = Object.values(data.errors).flat()[0];
+          setErrorMessage(firstError || 'Error de validación en las imágenes.');
         } else if (data?.message) {
           setErrorMessage(data.message);
         } else {
@@ -344,17 +355,36 @@ export default function ReportIssueScreen() {
 
             {/* Photo Section */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Agregar foto <Text style={{fontWeight: '400', color: colors.textLight}}>(Opcional, máx 5MB)</Text></Text>
-              <TouchableOpacity style={styles.photoUploadArea} onPress={handlePickImage} activeOpacity={0.8}>
-                {imageUri ? (
-                  <Image key={imageUri} source={{ uri: imageUri }} style={styles.uploadedImage} />
-                ) : (
-                  <>
-                    <Ionicons name="camera-outline" size={32} color={colors.textLight} />
-                    <Text style={styles.photoUploadText}>Tocar para tomar foto o elegir de galería</Text>
-                  </>
+              <Text style={styles.label}>
+                Agregar fotos <Text style={{fontWeight: '400', color: colors.textLight}}>(Opcional, hasta 5, máx 5MB c/u)</Text>
+              </Text>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                {imageUris.map((uri, index) => (
+                  <View key={index} style={styles.thumbnailWrapper}>
+                    <Image source={{ uri }} style={styles.thumbnailImage} />
+                    <TouchableOpacity
+                      style={styles.removeImageBtn}
+                      onPress={() => removeImage(index)}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#FF3B30" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {imageUris.length < 5 && (
+                  <TouchableOpacity style={styles.addImageBtn} onPress={handlePickImage} activeOpacity={0.7}>
+                    <Ionicons name="camera-outline" size={28} color={colors.primary} />
+                    <Text style={styles.addImageText}>Agregar</Text>
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </ScrollView>
+
+              {imageUris.length === 0 && (
+                <TouchableOpacity style={styles.photoUploadArea} onPress={handlePickImage} activeOpacity={0.8}>
+                  <Ionicons name="camera-outline" size={32} color={colors.textLight} />
+                  <Text style={styles.photoUploadText}>Tocar para tomar foto o elegir de galería</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Submit Button */}
@@ -420,6 +450,11 @@ const getStyles = (colors: any) => StyleSheet.create({
   photoUploadArea: { borderWidth: 2, borderColor: '#D1D5DB', borderStyle: 'dashed', borderRadius: 12, height: 160, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface, overflow: 'hidden' },
   photoUploadText: { marginTop: 12, color: colors.textSub, fontSize: 14, fontWeight: '500' },
   uploadedImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  thumbnailWrapper: { position: 'relative', marginRight: 10 },
+  thumbnailImage: { width: 90, height: 90, borderRadius: 10, backgroundColor: colors.border },
+  removeImageBtn: { position: 'absolute', top: -6, right: -6, zIndex: 1 },
+  addImageBtn: { width: 90, height: 90, borderRadius: 10, borderWidth: 2, borderColor: colors.primary, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+  addImageText: { color: colors.primary, fontSize: 11, fontWeight: '600', marginTop: 4 },
   submitButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8, marginBottom: 20 },
   submitButtonDisabled: { opacity: 0.7 },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: 0.5 }
