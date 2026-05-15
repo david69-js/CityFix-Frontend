@@ -7,21 +7,24 @@ import { useAuthStore } from '../store/authStore';
 import { getItemAsync, setItemAsync } from '../utils/storage';
 
 // --- Local Vote Cache Strategy ---
-// Since the backend sometimes drops the 'has_voted' state, we maintain a local record
-const getLocalVotes = async (): Promise<Record<string, boolean>> => {
+// Since the backend sometimes drops the 'has_voted' state, we maintain a local record.
+// The cache is scoped by user ID to prevent cross-user contamination.
+const getLocalVotes = async (userId?: number): Promise<Record<string, boolean>> => {
   try {
-    const data = await getItemAsync('local_votes');
+    const key = userId ? `local_votes_${userId}` : 'local_votes';
+    const data = await getItemAsync(key);
     return data ? JSON.parse(data) : {};
   } catch {
     return {};
   }
 };
 
-const saveLocalVote = async (issueId: string | number, hasVoted: boolean) => {
+const saveLocalVote = async (issueId: string | number, hasVoted: boolean, userId?: number) => {
   try {
-    const votes = await getLocalVotes();
+    const votes = await getLocalVotes(userId);
     votes[String(issueId)] = hasVoted;
-    await setItemAsync('local_votes', JSON.stringify(votes));
+    const key = userId ? `local_votes_${userId}` : 'local_votes';
+    await setItemAsync(key, JSON.stringify(votes));
   } catch (e) {
     console.warn('Failed to save local vote', e);
   }
@@ -163,7 +166,7 @@ export const useIssuesFeed = (perPage = 15, filters?: {
 
       const response = await apiClient.get<PaginatedResponse<Issue>>('/issues/feed', { params });
       
-      const localVotes = await getLocalVotes();
+      const localVotes = await getLocalVotes(user?.id);
       if (response.data && response.data.data) {
         response.data.data = response.data.data.map(issue => {
           const localVote = localVotes[String(issue.id)];
@@ -171,7 +174,7 @@ export const useIssuesFeed = (perPage = 15, filters?: {
             return { ...issue, has_voted: localVote };
           }
           if (issue.has_voted !== undefined) {
-            saveLocalVote(issue.id, !!issue.has_voted);
+            saveLocalVote(issue.id, !!issue.has_voted, user?.id);
           }
           return issue;
         });
@@ -246,47 +249,55 @@ export const useIssueDetails = (id: number | string | null, userId?: number) => 
       // LOG para depuración: Ver la estructura real que llega
       console.log(`[DEBUG] useIssueDetails(${id}) - Keys:`, Object.keys(issueData || {}));
       
-      // ESTRATEGIA DE FALLBACK: Si el detalle no trae votos, buscamos en el caché del feed
-      // ya que sabemos que el feed sí suele traer estos contadores.
-      let fallbackUpvotes = undefined;
-      let fallbackHasVoted = undefined;
+      // Buscar upvotes_count desde el feed (siempre es preferible porque refleja el total real)
+      let feedUpvotes = undefined as number | undefined;
+      let feedHasVoted = undefined as boolean | undefined;
 
-      if (issueData.upvotes_count == null) {
-        const feedQueries = queryClient.getQueriesData<any>({ queryKey: ['issues', 'feed'] });
-        for (const [_, feed] of feedQueries) {
-          if (!feed) continue;
+      const feedQueries = queryClient.getQueriesData<any>({ queryKey: ['issues', 'feed'] });
+      let userFeedMatch: Issue | null = null;
+      let anyFeedMatch: Issue | null = null;
 
-          const items: Issue[] = feed.pages
-            ? feed.pages.flatMap((p: any) => p.data || [])
-            : feed.data || [];
+      for (const [qk, feed] of feedQueries) {
+        if (!feed) continue;
 
-          const found = items.find(i => String(i.id) === String(id));
-          if (found && found.upvotes_count != null) {
-            fallbackUpvotes = found.upvotes_count;
-            fallbackHasVoted = found.has_voted;
-            console.log(`[DEBUG] Fallback encontrado en feed: upvotes=${fallbackUpvotes}, voted=${fallbackHasVoted}`);
-            break;
-          }
+        const items: Issue[] = feed.pages
+          ? feed.pages.flatMap((p: any) => p.data || [])
+          : feed.data || [];
+
+        const found = items.find(i => String(i.id) === String(id));
+        if (!found) continue;
+
+        anyFeedMatch = anyFeedMatch || found;
+        const feedUserId = Array.isArray(qk) ? qk[qk.length - 1] : undefined;
+        if (feedUserId !== undefined && Number(feedUserId) === userId) {
+          userFeedMatch = found;
+          break;
         }
       }
 
-      // Último recurso: revisar caché local de votos
-      const localVotes = await getLocalVotes();
+      const feedSource = userFeedMatch || anyFeedMatch;
+      if (feedSource) {
+        if (feedSource.upvotes_count != null) feedUpvotes = feedSource.upvotes_count;
+        if (userFeedMatch && feedSource.has_voted !== undefined) feedHasVoted = feedSource.has_voted;
+      }
+
+      // Último recurso: revisar caché local de votos (per-user)
+      const localVotes = await getLocalVotes(userId);
       const localVote = localVotes[String(id)];
 
-      // Asegurar que has_voted y upvotes_count existan con nombres alternativos o fallbacks
+      // Construir el issue: upvotes_count desde feed (total real), has_voted desde API o feed propio o local
       const issue: Issue = {
         ...issueData,
-        has_voted: !!(issueData.has_voted ?? issueData.voted ?? fallbackHasVoted ?? localVote ?? false),
-        upvotes_count: issueData.upvotes_count ?? issueData.total_upvotes ?? fallbackUpvotes ?? 0
+        has_voted: !!(issueData.has_voted ?? issueData.voted ?? feedHasVoted ?? localVote ?? false),
+        upvotes_count: feedUpvotes ?? issueData.upvotes_count ?? issueData.total_upvotes ?? 0
       };
       
-      // Sincronizar caché local si el backend sí envió el dato
+      // Solo sincronizar caché local si el backend envió has_voted explícitamente
       if (id && (issueData.has_voted !== undefined || issueData.voted !== undefined)) {
-        saveLocalVote(id, !!issue.has_voted);
+        saveLocalVote(id, !!issue.has_voted, userId);
       }
       
-      console.log(`[DEBUG] useIssueDetails(${id}) - Final state -> has_voted:`, issue.has_voted, 'upvotes:', issue.upvotes_count);
+      console.log(`[DEBUG] useIssueDetails(${id}) - Final: has_voted=${issue.has_voted}, upvotes=${issue.upvotes_count}, feedUpvotes=${feedUpvotes}, feedHasVoted=${feedHasVoted}`);
       
       return issue;
     },
@@ -370,7 +381,7 @@ export const useToggleUpvote = () => {
       const newHasVoted = previousIssue ? !previousIssue.has_voted : true;
       
       // Actualizar el caché local permanentemente
-      saveLocalVote(issueId, newHasVoted);
+      saveLocalVote(issueId, newHasVoted, user?.id);
 
       console.log(`[DEBUG] onMutate - Estado previo has_voted:`, previousIssue?.has_voted, `-> Nuevo:`, newHasVoted);
 
