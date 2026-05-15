@@ -105,7 +105,7 @@ export default function ProfileScreen() {
                 <View style={styles.avatar}>
                   {user?.avatar ? (
                     <Image
-                      source={{ uri: (user.avatar_url || fixImageUrl(user.avatar)) + `?t=${new Date().getTime()}` }}
+                      source={{ uri: fixImageUrl(user.avatar_url || user.avatar) + `?t=${new Date().getTime()}` }}
                       style={styles.avatarImage}
                     />
                   ) : (

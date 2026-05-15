@@ -258,7 +258,7 @@ export default function CityReporterDashboard() {
                 >
                   <View style={[styles.avatarCircle, selectedUserId === u.id && { borderColor: '#FFF' }]}>
                     {(u.avatar_url || u.avatar) ? (
-                      <Image source={{ uri: u.avatar_url || fixImageUrl(u.avatar) }} style={styles.chipAvatar} />
+                      <Image source={{ uri: fixImageUrl(u.avatar_url || u.avatar) }} style={styles.chipAvatar} />
                     ) : (
                       <Text style={[styles.avatarInitial, selectedUserId === u.id && { color: '#FFF' }]}>
                         {u.first_name?.charAt(0) || u.email?.charAt(0) || '?'}

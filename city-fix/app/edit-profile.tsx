@@ -132,7 +132,7 @@ export default function EditProfileScreen() {
                   {newAvatarUri ? (
                     <Image source={{ uri: newAvatarUri }} style={styles.avatarImage} />
                   ) : (user?.avatar_url || user?.avatar) ? (
-                    <Image source={{ uri: user?.avatar_url || fixImageUrl(user?.avatar) }} style={styles.avatarImage} />
+                    <Image source={{ uri: fixImageUrl(user?.avatar_url || user?.avatar) }} style={styles.avatarImage} />
                   ) : (
                     <Ionicons name="person" size={60} color="#E5E7EB" />
                   )}
