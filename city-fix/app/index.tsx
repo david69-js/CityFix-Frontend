@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, NativeScrollEvent, NativeSyntheticEvent, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useUsers } from '../src/hooks/useAuth';
 import { useIssuesFeed, useAdminIssues, useGlobalStats } from '../src/hooks/useIssues';
 import { useAdminUsers } from '../src/hooks/useAdmin';
@@ -46,13 +46,21 @@ export default function CityReporterDashboard() {
   const [selectedUserId, setSelectedUserId] = React.useState<number | undefined>(undefined);
 
   // Passing filters to the hook
-  const { data: feedData, isLoading: feedLoading, refetch, isRefetching } = useIssuesFeed(15, {
+  const {
+    data: feedData,
+    isLoading: feedLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useIssuesFeed(15, {
     search: debouncedSearchText,
     status_id: activeStatusFilter || undefined,
-    user_id: selectedUserId
+    user_id: selectedUserId,
   });
 
-  const allReports = (feedData?.data || []).filter(r => !r.is_hidden);
+  const allReports = (feedData?.pages.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
   
   // Hook para estadísticas globales (independiente de los filtros)
   const { data: globalStats } = useGlobalStats();
@@ -132,6 +140,13 @@ export default function CityReporterDashboard() {
         refreshControl={
           <RefreshControl refreshing={isManualRefresh} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
+        onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200 &&
+              hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
       >
 
         {/* Premium Header with Gradient and Decorative Elements */}
@@ -365,6 +380,19 @@ export default function CityReporterDashboard() {
                 </View>
               </TouchableOpacity>
             ))
+          )}
+
+          {isFetchingNextPage && (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ marginTop: 8, color: colors.textSub, fontSize: 13 }}>Cargando más reportes...</Text>
+            </View>
+          )}
+
+          {!hasNextPage && reports.length > 0 && (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: colors.textLight, fontSize: 13 }}>— Todos los reportes cargados —</Text>
+            </View>
           )}
         </View>
 

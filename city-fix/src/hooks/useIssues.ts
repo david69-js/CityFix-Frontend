@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { Issue, CreateIssuePayload, PaginatedResponse, IssueComment, UpdateIssuePayload, AdminUpdateIssuePayload } from '../types/api';
 import { STATUS_IDS } from '../utils/helpers';
@@ -150,21 +150,19 @@ export const useIssuesFeed = (perPage = 15, filters?: {
 }) => {
   const { user } = useAuthStore();
   
-  return useQuery({
-    queryKey: ['issues', 'feed', perPage, filters, user?.id],
-    queryFn: async () => {
-      const params: any = { per_page: perPage };
+  return useInfiniteQuery({
+    queryKey: ['issues', 'feed', 'infinite', perPage, filters, user?.id],
+    queryFn: async ({ pageParam = 1 }) => {
+      const params: any = { per_page: perPage, page: pageParam };
       if (filters?.search) params.search = filters.search;
       if (filters?.user_id) params.user_id = filters.user_id;
       if (filters?.status_id) params.status_id = filters.status_id;
       if (filters?.category_id) params.category_id = filters.category_id;
       
-      // Enviamos el ID del usuario actual para que el backend marque qué issues ha votado
       if (user?.id) params.voter_id = user.id;
 
       const response = await apiClient.get<PaginatedResponse<Issue>>('/issues/feed', { params });
       
-      // Inject local votes if backend missed them
       const localVotes = await getLocalVotes();
       if (response.data && response.data.data) {
         response.data.data = response.data.data.map(issue => {
@@ -172,7 +170,6 @@ export const useIssuesFeed = (perPage = 15, filters?: {
           if (localVote !== undefined && issue.has_voted === undefined) {
             return { ...issue, has_voted: localVote };
           }
-          // Si el backend sí lo mandó, actualizamos nuestro caché local para estar sincronizados
           if (issue.has_voted !== undefined) {
             saveLocalVote(issue.id, !!issue.has_voted);
           }
@@ -181,6 +178,13 @@ export const useIssuesFeed = (perPage = 15, filters?: {
       }
       
       return response.data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1;
+      }
+      return undefined;
     },
   });
 };
