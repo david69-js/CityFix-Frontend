@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingVi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useForgotPassword } from '../src/hooks/useAuth';
+import { useCheckEmail, useForgotPassword } from '../src/hooks/useAuth';
 
 const colors = {
   primary: '#1D4ED8',
@@ -20,23 +20,36 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   
+  const checkEmailMutation = useCheckEmail();
   const forgotPasswordMutation = useForgotPassword();
 
   const handleSendCode = () => {
     if (!email) return;
     setErrorMessage('');
-    
-    forgotPasswordMutation.mutate({ email }, {
-      onSuccess: () => {
-        router.push({ pathname: '/reset-password', params: { email } });
-      },
-      onError: (e: any) => {
-        const data = e?.response?.data;
-        if (data?.message) {
-          setErrorMessage(data.message);
-        } else {
-          setErrorMessage('Error al enviar el código de recuperación.');
+
+    checkEmailMutation.mutate({ email }, {
+      onSuccess: (data) => {
+        if (!data.exists) {
+          setErrorMessage('No hay ninguna cuenta registrada con este correo electrónico.');
+          return;
         }
+
+        forgotPasswordMutation.mutate({ email }, {
+          onSuccess: () => {
+            router.push({ pathname: '/reset-password', params: { email } });
+          },
+          onError: (e: any) => {
+            const data = e?.response?.data;
+            if (data?.message) {
+              setErrorMessage(data.message);
+            } else {
+              setErrorMessage('Error al enviar el código de recuperación.');
+            }
+          }
+        });
+      },
+      onError: () => {
+        setErrorMessage('Error al verificar el correo. Inténtalo de nuevo.');
       }
     });
   };
@@ -104,11 +117,11 @@ export default function ForgotPasswordScreen() {
             <TouchableOpacity 
               style={[styles.primaryButton, !email && styles.disabledButton]} 
               onPress={handleSendCode} 
-              disabled={forgotPasswordMutation.isPending || !email}
+              disabled={checkEmailMutation.isPending || forgotPasswordMutation.isPending || !email}
               activeOpacity={0.8}
             >
               <Text style={styles.primaryButtonText}>
-                {forgotPasswordMutation.isPending ? 'Enviando...' : 'Enviar Código de Recuperación'}
+                {checkEmailMutation.isPending ? 'Verificando...' : forgotPasswordMutation.isPending ? 'Enviando...' : 'Enviar Código de Recuperación'}
               </Text>
             </TouchableOpacity>
           </View>

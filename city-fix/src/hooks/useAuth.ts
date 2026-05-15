@@ -160,6 +160,15 @@ export const useRegister = () => {
   });
 };
 
+export const useCheckEmail = () => {
+  return useMutation({
+    mutationFn: async (payload: ForgotPasswordPayload) => {
+      const response = await apiClient.post<{ exists: boolean }>('/auth/check-email', payload);
+      return response.data;
+    },
+  });
+};
+
 export const useForgotPassword = () => {
   return useMutation({
     mutationFn: async (payload: ForgotPasswordPayload) => {
