@@ -37,7 +37,8 @@ export default function IssueDetailsScreen() {
   const { data: feedData } = useIssuesFeed(100);
   const { data: categories } = useCategories();
   const updateIssueMutation = useUpdateIssue();
-  
+
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [newComment, setNewComment] = React.useState('');
   const [selectedWorker, setSelectedWorker] = React.useState<number | null>(null);
   const [assignmentNotes, setAssignmentNotes] = React.useState('');
@@ -329,7 +330,6 @@ export default function IssueDetailsScreen() {
     );
   }
 
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const allImages = issue.images?.map(img => ({ url: fixImageUrl(img.full_url || img.image_url), id: img.id })) || [];
 
   return (
