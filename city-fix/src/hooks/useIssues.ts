@@ -168,7 +168,11 @@ export const useIssuesFeed = (perPage = 15, filters?: {
       
       const localVotes = await getLocalVotes(user?.id);
       if (response.data && response.data.data) {
-        response.data.data = response.data.data.map(issue => {
+        response.data.data = response.data.data.map((issue: any) => {
+          // Mapear has_upvoted del backend → has_voted
+          if (issue.has_upvoted !== undefined && issue.has_voted === undefined) {
+            issue.has_voted = !!issue.has_upvoted;
+          }
           const localVote = localVotes[String(issue.id)];
           if (localVote !== undefined && issue.has_voted === undefined) {
             return { ...issue, has_voted: localVote };
@@ -285,15 +289,18 @@ export const useIssueDetails = (id: number | string | null, userId?: number) => 
       const localVotes = await getLocalVotes(userId);
       const localVote = localVotes[String(id)];
 
+      // Mapear has_upvoted del backend → has_voted
+      const apiHasVoted = issueData.has_voted ?? issueData.has_upvoted ?? issueData.voted;
+
       // Construir el issue: upvotes_count desde feed (total real), has_voted desde API o feed propio o local
       const issue: Issue = {
         ...issueData,
-        has_voted: !!(issueData.has_voted ?? issueData.voted ?? feedHasVoted ?? localVote ?? false),
+        has_voted: !!(apiHasVoted ?? feedHasVoted ?? localVote ?? false),
         upvotes_count: feedUpvotes ?? issueData.upvotes_count ?? issueData.total_upvotes ?? 0
       };
       
       // Solo sincronizar caché local si el backend envió has_voted explícitamente
-      if (id && (issueData.has_voted !== undefined || issueData.voted !== undefined)) {
+      if (id && apiHasVoted !== undefined) {
         saveLocalVote(id, !!issue.has_voted, userId);
       }
       
@@ -443,16 +450,40 @@ export const useToggleUpvote = () => {
       return { previousIssue, detailsQueryKey };
     },
     onSuccess: (data, issueId, context) => {
-      console.log(`[DEBUG] toggle-upvote exitoso. Respuesta:`, data);
-      // Si el servidor devuelve el objeto issue actualizado, lo usamos directamente
-      if (data && (data.has_voted !== undefined || data.upvotes_count !== undefined)) {
+      // La API devuelve { upvoted, upvotes_count } — mapear a has_voted
+      if (data && (data.upvoted !== undefined || data.upvotes_count !== undefined)) {
+        saveLocalVote(Number(issueId), !!data.upvoted, user?.id);
         if (context.detailsQueryKey) {
           queryClient.setQueryData(context.detailsQueryKey, (old: any) => ({
             ...old,
-            ...data,
-            has_voted: !!data.has_voted // Asegurar booleano
+            has_voted: !!data.upvoted,
+            upvotes_count: data.upvotes_count,
           }));
         }
+        // Actualizar en caché del feed inmediatamente sin invalidar
+        queryClient.setQueriesData({ queryKey: ['issues', 'feed'], type: 'active' }, (old: any) => {
+          if (!old) return old;
+          const idStr = String(issueId);
+          const updateItem = (item: any) => {
+            if (String(item.id) === idStr) {
+              return { ...item, has_voted: !!data.upvoted, upvotes_count: data.upvotes_count };
+            }
+            return item;
+          };
+          if ('pages' in old) {
+            return {
+              ...old,
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                data: page.data.map(updateItem),
+              })),
+            };
+          }
+          if ('data' in old) {
+            return { ...old, data: old.data.map(updateItem) };
+          }
+          return old;
+        });
       }
     },
     onError: (err: any, issueId, context: any) => {
