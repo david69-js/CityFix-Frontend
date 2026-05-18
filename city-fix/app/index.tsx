@@ -152,7 +152,9 @@ export default function CityReporterDashboard() {
         {/* Premium Header with Gradient and Decorative Elements */}
         <View style={styles.headerWrapper}>
           <LinearGradient
-            colors={[colors.primary, '#1e40af']}
+            colors={[colors.primary, '#243048']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
             style={styles.headerBg}
           />
 

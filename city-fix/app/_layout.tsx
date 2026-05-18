@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from '../src/store/authStore';
 import { View, ActivityIndicator } from 'react-native';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
+import { StatusBar } from 'expo-status-bar';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -74,7 +75,12 @@ function RootLayoutNav() {
     );
   }
 
-  return <Stack />;
+  return (
+    <>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <Stack />
+    </>
+  );
 }
 
 export default function RootLayout() {

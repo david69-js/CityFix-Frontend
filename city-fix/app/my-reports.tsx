@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Image, Platform } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../src/store/authStore';
 import { useMyIssues } from '../src/hooks/useIssues';
@@ -10,10 +10,34 @@ import { fixImageUrl, getCategoryColor } from '../src/utils/helpers';
 
 export default function MyReportsScreen() {
   const router = useRouter();
+  const { statusId } = useLocalSearchParams();
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
   const { data: myIssues, isLoading } = useMyIssues(user?.id);
+
+  const statusLabels: Record<number, string> = {
+    1: 'Pendientes',
+    2: 'En Proceso',
+    3: 'Resueltos'
+  };
+  
+  const statusEmptyDescs: Record<number, string> = {
+    1: 'Aún no tienes ningún problema pendiente de revisión.',
+    2: 'Aún no tienes ningún problema en proceso de reparación.',
+    3: 'Aún no tienes ningún problema marcado como resuelto.'
+  };
+
+  const activeStatusLabel = statusId ? statusLabels[Number(statusId)] : '';
+  const activeStatusDesc = statusId ? statusEmptyDescs[Number(statusId)] : 'Aún no has reportado ningún problema.';
+
+  const filteredIssues = React.useMemo(() => {
+    if (!myIssues) return [];
+    if (statusId) {
+      return myIssues.filter(issue => Number(issue.status_id) === Number(statusId));
+    }
+    return myIssues;
+  }, [myIssues, statusId]);
 
   return (
     <View style={styles.container}>
@@ -37,15 +61,15 @@ export default function MyReportsScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={{ marginTop: 12, color: colors.textSub }}>Cargando reportes...</Text>
         </View>
-      ) : myIssues && myIssues.length > 0 ? (
+      ) : filteredIssues && filteredIssues.length > 0 ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
           <Text style={styles.countText}>
-            {myIssues.length} reporte{myIssues.length !== 1 ? 's' : ''}
+            {filteredIssues.length} reporte{filteredIssues.length !== 1 ? 's' : ''} {activeStatusLabel ? `(${activeStatusLabel})` : ''}
           </Text>
-          {myIssues.map(issue => (
+          {filteredIssues.map(issue => (
             <TouchableOpacity
               key={issue.id}
               style={styles.issueCard}
@@ -92,15 +116,21 @@ export default function MyReportsScreen() {
       ) : (
         <View style={styles.centered}>
           <Ionicons name="document-text-outline" size={64} color={colors.textLight} />
-          <Text style={styles.emptyTitle}>Sin reportes</Text>
-          <Text style={styles.emptyDesc}>Aún no has reportado ningún problema.</Text>
-          <TouchableOpacity
-            style={styles.reportBtn}
-            onPress={() => router.push('/report')}
-          >
-            <Ionicons name="add" size={20} color="#FFF" />
-            <Text style={styles.reportBtnText}>Reportar un problema</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptyTitle}>
+            {statusId ? `Sin reportes ${activeStatusLabel.toLowerCase()}` : 'Sin reportes'}
+          </Text>
+          <Text style={styles.emptyDesc}>
+            {activeStatusDesc}
+          </Text>
+          {!statusId && (
+            <TouchableOpacity
+              style={styles.reportBtn}
+              onPress={() => router.push('/report')}
+            >
+              <Ionicons name="add" size={20} color="#FFF" />
+              <Text style={styles.reportBtnText}>Reportar un problema</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>

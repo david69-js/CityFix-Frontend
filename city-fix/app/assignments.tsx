@@ -65,7 +65,7 @@ export default function AssignmentsScreen() {
                 
                 {assignment.notes ? (
                   <View style={styles.notesContainer}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.textSub} style={{marginRight: 4}} />
+                    <Ionicons name="information-circle-outline" size={16} color="#FFF" style={{marginRight: 4}} />
                     <Text style={styles.notesText}>{assignment.notes}</Text>
                   </View>
                 ) : null}
@@ -100,7 +100,7 @@ export default function AssignmentsScreen() {
 const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { 
-    paddingTop: Platform.OS === 'android' ? 40 : 16, 
+    paddingTop: Platform.OS === 'android' ? 25 : 16, 
     paddingBottom: 16, 
     alignItems: 'center' 
   },
@@ -113,7 +113,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   dateText: { fontSize: 12, color: colors.textLight },
   title: { fontSize: 16, fontWeight: '700', color: colors.textTitle, marginBottom: 12 },
   notesContainer: { flexDirection: 'row', backgroundColor: colors.border, padding: 10, borderRadius: 8, marginBottom: 12, alignItems: 'flex-start' },
-  notesText: { fontSize: 13, color: colors.textSub, flex: 1 },
+  notesText: { fontSize: 13, color: '#FFF', flex: 1 },
   footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   statusText: { fontSize: 13, fontWeight: '600' },
   actionBtn: { flexDirection: 'row', alignItems: 'center' },

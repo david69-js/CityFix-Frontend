@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Share, Modal } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Image } from 'react-native';
@@ -12,6 +12,7 @@ import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
 import { useAdminIssues, useToggleIssueHidden } from '../src/hooks/useIssues';
 import { useAdminUsers, useToggleUserActive, useAdminUpdateUser } from '../src/hooks/useAdmin';
+import { useQueryClient } from '@tanstack/react-query';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ export default function AdminScreen() {
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
+  const queryClient = useQueryClient();
 
   const translateRoleName = (name: string) => {
     if (name.toLowerCase() === 'worker') return 'Trabajador';
@@ -55,15 +57,11 @@ export default function AdminScreen() {
   const [userRole, setUserRole] = useState('1'); // Default to citizen
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // --- States for Update User ---
-  const [updateUserId, setUpdateUserId] = useState('');
-  const [updateUserRole, setUpdateUserRole] = useState('');
-  const [updateUserFirstName, setUpdateUserFirstName] = useState('');
-  const [updateUserPhone, setUpdateUserPhone] = useState('');
-  const [updateUserAvatar, setUpdateUserAvatar] = useState<string | null>(null);
-  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
-  
-  const updateProfileMutation = useUpdateProfile();
+  // --- States for Update User Modal ---
+  const [selectedUserToEdit, setSelectedUserToEdit] = useState<any | null>(null);
+  const [editUserRoleId, setEditUserRoleId] = useState<string>('');
+  const [editUserPhone, setEditUserPhone] = useState<string>('');
+  const [isSavingUser, setIsSavingUser] = useState(false);
 
   // --- States for Invitation Code ---
   const [invCode, setInvCode] = useState(generateRandomCode());
@@ -108,9 +106,9 @@ export default function AdminScreen() {
             setUserRole(response.data[0].id.toString());
           }
         } else if (response.data && Array.isArray(response.data.data)) {
-           // Si Laravel lo pagina
-           setRoles(response.data.data);
-           if (response.data.data.length > 0 && userRole === '1') {
+          // Si Laravel lo pagina
+          setRoles(response.data.data);
+          if (response.data.data.length > 0 && userRole === '1') {
             setUserRole(response.data.data[0].id.toString());
           }
         }
@@ -140,11 +138,12 @@ export default function AdminScreen() {
     }
     try {
       setIsCreatingCategory(true);
-      await apiClient.post('/categories', {
+      await apiClient.post('/admin/categories', {
         name: categoryName,
         icon: categoryIcon,
         parent_id: null
       });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       Alert.alert('Éxito', 'Categoría creada correctamente.');
       setCategoryName('');
       setCategoryIcon('fa-solid fa-road');
@@ -173,14 +172,14 @@ export default function AdminScreen() {
 
       const newUserId = registerRes.data.user.id;
 
-      // Luego actualizamos el rol y el teléfono usando PUT /users/{id} 
+      // Luego actualizamos el rol y el teléfono usando PUT /admin/users/{id} 
       // (que sí funciona correctamente en el backend).
       if (userRole || userPhone) {
         const updatePayload: any = {};
         if (userRole) updatePayload.role_id = parseInt(userRole, 10);
         if (userPhone) updatePayload.phone = userPhone;
-        
-        await apiClient.put(`/users/${newUserId}`, updatePayload);
+
+        await apiClient.put(`/admin/users/${newUserId}`, updatePayload);
       }
 
       Alert.alert('Éxito', 'Usuario creado correctamente.');
@@ -193,62 +192,29 @@ export default function AdminScreen() {
     }
   };
 
-  const handlePickAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Error', 'Se necesitan permisos de galería.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setUpdateUserAvatar(result.assets[0].uri);
-    }
+  const handleEditUserRole = (user: any) => {
+    setSelectedUserToEdit(user);
+    setEditUserRoleId(user.role_id ? user.role_id.toString() : '3');
+    setEditUserPhone(user.phone || '');
   };
 
-  const handleUpdateUser = async () => {
-    if (!updateUserId) {
-      Alert.alert('Error', 'Ingresa el ID del usuario a actualizar.');
-      return;
-    }
+  const handleSaveUserEdit = async () => {
+    if (!selectedUserToEdit) return;
     try {
-      setIsUpdatingUser(true);
-      
-      const payload: any = {};
-      if (updateUserRole) payload.role_id = parseInt(updateUserRole, 10);
-      if (updateUserFirstName) payload.first_name = updateUserFirstName;
-      if (updateUserPhone) payload.phone = updateUserPhone;
-
-      if (updateUserAvatar) {
-        const filename = updateUserAvatar.split('/').pop() || 'avatar.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-        
-        payload.avatar = {
-          uri: updateUserAvatar,
-          name: filename,
-          type,
-        };
-      }
-
-      await updateProfileMutation.mutateAsync({
-        userId: parseInt(updateUserId, 10),
-        payload
+      setIsSavingUser(true);
+      await adminUpdateUserMutation.mutateAsync({
+        userId: selectedUserToEdit.id,
+        payload: {
+          role_id: parseInt(editUserRoleId, 10),
+          phone: editUserPhone,
+        }
       });
-
       Alert.alert('Éxito', 'Usuario actualizado correctamente.');
-      setUpdateUserId(''); setUpdateUserRole(''); setUpdateUserFirstName(''); setUpdateUserPhone('');
-      setUpdateUserAvatar(null);
+      setSelectedUserToEdit(null);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Error al actualizar usuario.');
+      Alert.alert('Error', error.response?.data?.message || 'Error al actualizar el usuario.');
     } finally {
-      setIsUpdatingUser(false);
+      setIsSavingUser(false);
     }
   };
 
@@ -266,20 +232,20 @@ export default function AdminScreen() {
       }
       const res = await apiClient.post('/invitation-codes', payload);
       const generatedCode = res.data?.data?.code || res.data?.code;
-      
+
       Alert.alert(
         '¡Código Generado!',
         `El código es:\n${generatedCode}\n\n¿Deseas enviarlo ahora?`,
         [
           { text: 'Cerrar', style: 'cancel', onPress: () => setInvCode(generateRandomCode()) },
-          { 
-            text: 'Compartir', 
+          {
+            text: 'Compartir',
             onPress: () => {
               Share.share({
                 message: `¡Únete al equipo de CityFix!\n\nDescarga la app y usa este Código de Invitación especial al registrarte para obtener tu rol:\n\n${generatedCode}`,
               });
               setInvCode(generateRandomCode());
-            } 
+            }
           }
         ]
       );
@@ -314,26 +280,6 @@ export default function AdminScreen() {
     }
   };
 
-  const handleEditUserRole = (user: any) => {
-    Alert.prompt(
-      'Nuevo Rol (ID)',
-      `Actual: ${user.role?.name} (ID: ${user.role_id})\nAdmin: 1, Worker: 2, Citizen: 3`,
-      async (newRoleId) => {
-        if (!newRoleId) return;
-        try {
-          await adminUpdateUserMutation.mutateAsync({
-            userId: user.id,
-            payload: { role_id: parseInt(newRoleId, 10) }
-          });
-          Alert.alert('Éxito', 'Rol actualizado');
-        } catch (error: any) {
-          Alert.alert('Error', error.response?.data?.message || 'Error al actualizar');
-        }
-      },
-      'plain-text',
-      String(user.role_id)
-    );
-  };
 
   const handleToggleUserActive = async (user: any) => {
     const isCurrentlyActive = user.is_active === true || Number(user.is_active) === 1;
@@ -378,8 +324,8 @@ export default function AdminScreen() {
         <SafeAreaView>
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Administración</Text>
-            <TouchableOpacity 
-              style={styles.reportsButton} 
+            <TouchableOpacity
+              style={styles.reportsButton}
               onPress={() => router.push('/admin-reports')}
             >
               <Ionicons name="bar-chart" size={20} color="#FFF" />
@@ -396,7 +342,7 @@ export default function AdminScreen() {
           {/* Create Category */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Crear Nueva Categoría</Text>
-            
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nombre de Categoría</Text>
               <TextInput
@@ -421,17 +367,17 @@ export default function AdminScreen() {
                     onPress={() => setCategoryIcon(icon.value)}
                     activeOpacity={0.7}
                   >
-                    <FontAwesome5 
-                      name={icon.name} 
-                      size={24} 
-                      color={categoryIcon === icon.value ? colors.adminHighlight : colors.textSub} 
+                    <FontAwesome5
+                      name={icon.name}
+                      size={24}
+                      color={categoryIcon === icon.value ? colors.adminHighlight : colors.textSub}
                     />
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.adminButton}
               onPress={handleCreateCategory}
               disabled={isCreatingCategory}
@@ -451,9 +397,9 @@ export default function AdminScreen() {
             <TextInput style={styles.input} placeholder="Correo electrónico" placeholderTextColor={colors.textLight} value={userEmail} onChangeText={setUserEmail} keyboardType="email-address" />
             <TextInput style={styles.input} placeholder="Contraseña" placeholderTextColor={colors.textLight} value={userPassword} onChangeText={setUserPassword} secureTextEntry />
             <TextInput style={styles.input} placeholder="Teléfono" placeholderTextColor={colors.textLight} value={userPhone} onChangeText={setUserPhone} keyboardType="phone-pad" />
-            
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Rol de Usuario <Text style={{color: colors.adminHighlight}}>*</Text></Text>
+              <Text style={styles.label}>Rol de Usuario <Text style={{ color: colors.adminHighlight }}>*</Text></Text>
               {roles.length === 0 ? (
                 <Text style={{ fontSize: 13, color: colors.textLight }}>Cargando roles...</Text>
               ) : (
@@ -475,78 +421,9 @@ export default function AdminScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Update User */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Actualizar Usuario / Rol</Text>
-            <TextInput style={styles.input} placeholder="ID del Usuario" placeholderTextColor={colors.textLight} value={updateUserId} onChangeText={setUpdateUserId} keyboardType="numeric" />
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nuevo Rol (Opcional)</Text>
-              {roles.length === 0 ? (
-                <Text style={{ fontSize: 13, color: colors.textLight }}>Cargando roles...</Text>
-              ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                  <TouchableOpacity
-                      style={[styles.roleChip, updateUserRole === '' && styles.roleChipSelected]}
-                      onPress={() => setUpdateUserRole('')}
-                    >
-                      <Text style={[styles.roleChipText, updateUserRole === '' && styles.roleChipTextSelected]}>Sin Cambios</Text>
-                  </TouchableOpacity>
-                  {roles.map((r: any) => (
-                    <TouchableOpacity
-                      key={r.id}
-                      style={[styles.roleChip, updateUserRole === r.id.toString() && styles.roleChipSelected]}
-                      onPress={() => setUpdateUserRole(r.id.toString())}
-                    >
-                      <Text style={[styles.roleChipText, updateUserRole === r.id.toString() && styles.roleChipTextSelected]}>{translateRoleName(r.name)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-            <TextInput style={styles.input} placeholder="Actualizar Teléfono" placeholderTextColor={colors.textLight} value={updateUserPhone} onChangeText={setUpdateUserPhone} keyboardType="phone-pad" />
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Foto de Perfil (Avatar)</Text>
-              <TouchableOpacity style={styles.avatarPicker} onPress={handlePickAvatar}>
-                {updateUserAvatar ? (
-                  <Image source={{ uri: updateUserAvatar }} style={styles.avatarPreview} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="camera" size={24} color={colors.textLight} />
-                    <Text style={styles.avatarPlaceholderText}>Elegir Foto</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
 
-            <TouchableOpacity style={styles.adminButton} onPress={handleUpdateUser} disabled={isUpdatingUser}>
-              <Text style={styles.adminButtonText}>{isUpdatingUser ? 'Actualizando...' : 'Actualizar Usuario'}</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Create Issue Status */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Gestionar Estados de Reportes</Text>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nombre del Estado (Ej: Pendiente, En Proceso)</Text>
-              <TextInput style={styles.input} placeholder="Nombre" placeholderTextColor={colors.textLight} value={statusName} onChangeText={setStatusName} />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Color Hexadecimal</Text>
-              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder="#RRGGBB" placeholderTextColor={colors.textLight} value={statusColor} onChangeText={setStatusColor} />
-                <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: statusColor || '#EEE' }} />
-              </View>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Orden de Clasificación</Text>
-              <TextInput style={styles.input} placeholder="1" placeholderTextColor={colors.textLight} value={statusOrder} onChangeText={setStatusOrder} keyboardType="numeric" />
-            </View>
-            <TouchableOpacity style={styles.adminButton} onPress={handleCreateStatus} disabled={isCreatingStatus}>
-              <Text style={styles.adminButtonText}>{isCreatingStatus ? 'Guardando...' : 'Crear Estado'}</Text>
-            </TouchableOpacity>
-          </View>
+
 
           {/* Create Invitation Code */}
           <View style={styles.card}>
@@ -554,7 +431,7 @@ export default function AdminScreen() {
             <TextInput style={styles.input} placeholder="Ej: CF-XYZ123" placeholderTextColor={colors.textLight} value={invCode} onChangeText={setInvCode} />
             <TextInput style={styles.input} placeholder="Usos máximos (Ej: 10)" placeholderTextColor={colors.textLight} value={invMaxUses} onChangeText={setInvMaxUses} keyboardType="numeric" />
             <TextInput style={styles.input} placeholder="Expira en (YYYY-MM-DD HH:mm:ss)" placeholderTextColor={colors.textLight} value={invExpires} onChangeText={setInvExpires} />
-            
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Rol para este código</Text>
               {roles.length === 0 ? (
@@ -598,8 +475,8 @@ export default function AdminScreen() {
                   onChangeText={setUserSearch}
                 />
 
-                <ScrollView style={{ maxHeight: 350 }}>
-                  {Array.isArray(userList) && userList.filter((u: any) => 
+                <View style={{ gap: 12 }}>
+                  {Array.isArray(userList) && userList.filter((u: any) =>
                     `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(userSearch.toLowerCase())
                   ).map((u: any) => {
                     const isArchived = u.is_active === false || Number(u.is_active) === 0;
@@ -624,14 +501,14 @@ export default function AdminScreen() {
                             <Ionicons name="create-outline" size={20} color={colors.primary} />
                           </TouchableOpacity>
                           {u.role?.name !== 'Admin' && (
-                            <TouchableOpacity 
-                              style={[styles.userActionBtn, isArchived && { backgroundColor: '#F0FDF4' }]} 
+                            <TouchableOpacity
+                              style={[styles.userActionBtn, isArchived && { backgroundColor: '#F0FDF4' }]}
                               onPress={() => handleToggleUserActive(u)}
                             >
-                              <Ionicons 
-                                name={isArchived ? 'checkmark-circle-outline' : 'close-circle-outline'} 
-                                size={20} 
-                                color={isArchived ? '#10B981' : '#EF4444'} 
+                              <Ionicons
+                                name={isArchived ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                                size={20}
+                                color={isArchived ? '#10B981' : '#EF4444'}
                               />
                             </TouchableOpacity>
                           )}
@@ -639,7 +516,7 @@ export default function AdminScreen() {
                       </View>
                     );
                   })}
-                </ScrollView>
+                </View>
               </View>
             )}
           </View>
@@ -666,8 +543,8 @@ export default function AdminScreen() {
                 {loadingArchived ? (
                   <ActivityIndicator color={colors.adminHighlight} />
                 ) : (
-                  <ScrollView style={{ maxHeight: 350 }}>
-                    {Array.isArray(archivedIssues?.data) && archivedIssues.data.filter((i: any) => 
+                  <View style={{ gap: 12 }}>
+                    {Array.isArray(archivedIssues?.data) && archivedIssues.data.filter((i: any) =>
                       i.title.toLowerCase().includes(archivedSearch.toLowerCase())
                     ).map((i: any) => (
                       <View key={i.id} style={styles.userRow}>
@@ -675,8 +552,8 @@ export default function AdminScreen() {
                           <Text style={styles.userName}>{i.title}</Text>
                           <Text style={styles.userEmail}>Motivo: {i.hidden_reason || 'Ninguno'}</Text>
                         </View>
-                        <TouchableOpacity 
-                          style={styles.userActionBtn} 
+                        <TouchableOpacity
+                          style={styles.userActionBtn}
                           onPress={() => toggleIssueHiddenMutation.mutate({ issueId: i.id })}
                         >
                           <Ionicons name="eye-outline" size={20} color={colors.primary} />
@@ -686,7 +563,7 @@ export default function AdminScreen() {
                     {(!archivedIssues?.data || archivedIssues.data.length === 0) && (
                       <Text style={styles.emptyText}>No hay reportes archivados</Text>
                     )}
-                  </ScrollView>
+                  </View>
                 )}
               </View>
             )}
@@ -700,6 +577,102 @@ export default function AdminScreen() {
         </View>
         <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* Edit User Modal */}
+      {selectedUserToEdit && (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={selectedUserToEdit !== null}
+          onRequestClose={() => setSelectedUserToEdit(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Editar Usuario</Text>
+                <TouchableOpacity onPress={() => setSelectedUserToEdit(null)}>
+                  <Ionicons name="close" size={24} color={colors.textTitle} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+                {/* User Info Read-only */}
+                <View style={styles.modalInfoGroup}>
+                  <Text style={styles.modalInfoLabel}>Nombre:</Text>
+                  <Text style={styles.modalInfoValue}>
+                    {selectedUserToEdit.first_name} {selectedUserToEdit.last_name || ''}
+                  </Text>
+                </View>
+                <View style={styles.modalInfoGroup}>
+                  <Text style={styles.modalInfoLabel}>Email:</Text>
+                  <Text style={styles.modalInfoValue}>{selectedUserToEdit.email}</Text>
+                </View>
+
+                {/* Edit Role Option */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Rol de Usuario</Text>
+                  {roles.length === 0 ? (
+                    <Text style={{ fontSize: 13, color: colors.textLight }}>Cargando roles...</Text>
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                      {roles.map((r: any) => (
+                        <TouchableOpacity
+                          key={r.id}
+                          style={[
+                            styles.roleChip,
+                            editUserRoleId === r.id.toString() && styles.roleChipSelected
+                          ]}
+                          onPress={() => setEditUserRoleId(r.id.toString())}
+                        >
+                          <Text style={[
+                            styles.roleChipText,
+                            editUserRoleId === r.id.toString() && styles.roleChipTextSelected
+                          ]}>
+                            {translateRoleName(r.name)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Edit Phone Option */}
+                <View style={[styles.inputGroup, { marginTop: 12 }]}>
+                  <Text style={styles.label}>Número de Teléfono</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: +591 70000000"
+                    placeholderTextColor={colors.textLight}
+                    value={editUserPhone}
+                    onChangeText={setEditUserPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                {/* Action Buttons */}
+                <TouchableOpacity
+                  style={[styles.adminButton, { marginTop: 16 }]}
+                  onPress={handleSaveUserEdit}
+                  disabled={isSavingUser}
+                >
+                  <Text style={styles.adminButtonText}>
+                    {isSavingUser ? 'Guardando...' : 'Guardar Cambios'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.adminButton, { backgroundColor: colors.border, marginTop: 10 }]}
+                  onPress={() => setSelectedUserToEdit(null)}
+                >
+                  <Text style={[styles.adminButtonText, { color: colors.textTitle }]}>
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Bottom Tabs */}
       <BottomTabBar activeTab="admin" />
@@ -735,7 +708,7 @@ function CampaignSection() {
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Campaña de Notificación Masiva</Text>
       <Text style={styles.label}>Esta notificación se enviará a TODOS los usuarios.</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="Título del aviso"
@@ -743,7 +716,7 @@ function CampaignSection() {
         value={title}
         onChangeText={setTitle}
       />
-      
+
       <TextInput
         style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
         placeholder="Mensaje de la campaña..."
@@ -753,9 +726,9 @@ function CampaignSection() {
         multiline
       />
 
-      <TouchableOpacity 
-        style={[styles.adminButton, { backgroundColor: colors.adminHighlight }]} 
-        onPress={handleSend} 
+      <TouchableOpacity
+        style={[styles.adminButton, { backgroundColor: colors.adminHighlight }]}
+        onPress={handleSend}
         disabled={sendCampaignMutation.isPending}
       >
         <Ionicons name="megaphone-outline" size={20} color="#FFF" />
@@ -892,5 +865,54 @@ const getStyles = (colors: any) => StyleSheet.create({
     backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '85%',
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.textTitle,
+  },
+  modalInfoGroup: {
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalInfoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSub,
+  },
+  modalInfoValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textTitle,
   },
 });

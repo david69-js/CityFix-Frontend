@@ -1,14 +1,26 @@
-{
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "simulator": true
+  {
+    "build": {
+      "development": {
+        "developmentClient": true,
+        "distribution": "internal"
       },
-      "android": {
-        "buildType": "apk"
+      "preview": {
+        "distribution": "internal",
+        "android": {
+          "buildType": "apk"
+        },
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://cityfix-backend-production.up.railway.app/api",
+          "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "204018854159-716lblmbqhntei19ggcrnug156jvj9ec.apps.googleusercontent.com",
+          "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "204018854159-s3867dfu822t0atb21u04v8mbgfc2tbr.apps.googleusercontent.com"
+        }
+      },
+      "production": {
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://cityfix-backend-production.up.railway.app/api",
+          "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "204018854159-716lblmbqhntei19ggcrnug156jvj9ec.apps.googleusercontent.com",
+          "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "204018854159-s3867dfu822t0atb21u04v8mbgfc2tbr.apps.googleusercontent.com"
+        }
       }
     }
   }
-}

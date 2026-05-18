@@ -125,15 +125,41 @@ export default function ProfileScreen() {
         <View style={styles.statsCardWrapper}>
           <View style={styles.statsCard}>
 
-            <View style={[styles.statItem, { backgroundColor: colors.statBgBlue }]}>
+            <TouchableOpacity
+              style={[styles.statItem, { backgroundColor: colors.statBgBlue }]}
+              onPress={() => router.push('/my-reports')}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.statNumber, { color: colors.statTextBlue }]}>{totalReports}</Text>
               <Text style={styles.statLabel}>Reportes Totales</Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={[styles.statItem, { backgroundColor: colors.statBgGreen }]}>
-              <Text style={[styles.statNumber, { color: colors.statTextGreen }]}>{resolvedCount}</Text>
+            <TouchableOpacity
+              style={[styles.statItem, { backgroundColor: colors.iconOrangeBg }]}
+              onPress={() => router.push('/my-reports?statusId=1')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statNumber, { color: colors.iconOrangeFg }]}>{reportedCount}</Text>
+              <Text style={styles.statLabel}>Pendientes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.statItem, { backgroundColor: colors.iconBlueBg }]}
+              onPress={() => router.push('/my-reports?statusId=2')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statNumber, { color: colors.iconBlueFg }]}>{processCount}</Text>
+              <Text style={styles.statLabel}>En Proceso</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.statItem, { backgroundColor: colors.iconGreenBg }]}
+              onPress={() => router.push('/my-reports?statusId=3')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statNumber, { color: colors.iconGreenFg }]}>{resolvedCount}</Text>
               <Text style={styles.statLabel}>Resueltos</Text>
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.statItem, { backgroundColor: colors.statBgPurple }]}>
               <View style={styles.statNumberRow}>

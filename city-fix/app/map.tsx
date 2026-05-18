@@ -37,6 +37,7 @@ export default function MapScreen() {
   const { data: feedData, isLoading } = useIssuesFeed(100);
   const [activeFilter, setActiveFilter] = useState('Todos');
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const allReports = (feedData?.pages?.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
@@ -169,6 +170,7 @@ export default function MapScreen() {
               showsCompass={true}
               showsScale={true}
               mapType="standard"
+              onPress={() => setSelectedReport(null)}
             >
               {filteredReports
                 .filter(report => report.latitude && report.longitude)
@@ -180,30 +182,50 @@ export default function MapScreen() {
                       longitude: Number(report.longitude),
                     }}
                     pinColor={report.status?.color || getMarkerColor(report.status?.name)}
-                    title={report.title}
-                    description={report.location || `${report.latitude}, ${report.longitude}`}
-                    onCalloutPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
-                  >
-                    <Callout 
-                      tooltip={false} 
-                      onPress={() => router.push({ pathname: '/issue-details', params: { id: report.id } })}
-                    >
-                      <View style={styles.calloutContainer}>
-                        <Text style={styles.calloutTitle} numberOfLines={2}>{report.title}</Text>
-                        <Text style={styles.calloutLocation} numberOfLines={1}>
-                          📍 {report.location || 'Sin ubicación'}
-                        </Text>
-                        <View style={styles.calloutStatusRow}>
-                          <View style={[styles.calloutDot, { backgroundColor: report.status?.color || getMarkerColor(report.status?.name) }]} />
-                          <Text style={styles.calloutStatus}>{report.status?.name || 'Sin estado'}</Text>
-                        </View>
-                        <Text style={styles.calloutHint}>Tocar para ver detalles →</Text>
-                      </View>
-                    </Callout>
-                  </Marker>
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setSelectedReport(report);
+                      if (mapRef.current) {
+                        mapRef.current.animateToRegion({
+                          latitude: Number(report.latitude),
+                          longitude: Number(report.longitude),
+                          latitudeDelta: 0.012,
+                          longitudeDelta: 0.012,
+                        }, 500);
+                      }
+                    }}
+                  />
                 ))
               }
             </MapView>
+          )}
+
+          {/* Dynamic detail card for selected report */}
+          {selectedReport && (
+            <TouchableOpacity 
+              style={styles.detailCard}
+              onPress={() => router.push({ pathname: '/issue-details', params: { id: selectedReport.id } })}
+              activeOpacity={0.9}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle} numberOfLines={1}>{selectedReport.title}</Text>
+                <TouchableOpacity onPress={() => setSelectedReport(null)} style={styles.closeCardBtn}>
+                  <Ionicons name="close-circle" size={24} color={colors.textLight} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.cardLocation} numberOfLines={1}>
+                📍 {selectedReport.location || 'Sin ubicación'}
+              </Text>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.statusRow}>
+                  <View style={[styles.statusDot, { backgroundColor: selectedReport.status?.color || getMarkerColor(selectedReport.status?.name) }]} />
+                  <Text style={styles.statusText}>{selectedReport.status?.name || 'Sin estado'}</Text>
+                </View>
+                <Text style={styles.cardHint}>Ver detalles completos →</Text>
+              </View>
+            </TouchableOpacity>
           )}
 
           {/* Floating buttons */}
@@ -219,10 +241,12 @@ export default function MapScreen() {
           </View>
 
           {/* Issues counter badge */}
-          <View style={styles.counterBadge}>
-            <Ionicons name="flag" size={14} color="#FFF" />
-            <Text style={styles.counterText}>{filteredReports.length} reportes</Text>
-          </View>
+          {!selectedReport && (
+            <View style={styles.counterBadge}>
+              <Ionicons name="flag" size={14} color="#FFF" />
+              <Text style={styles.counterText}>{filteredReports.length} reportes</Text>
+            </View>
+          )}
         </View>
 
         <BottomTabBar activeTab="map" />
@@ -287,42 +311,68 @@ const getStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  // Callout styles
-  calloutContainer: {
-    width: 220,
-    padding: 10,
+  // Detail Card styles
+  detailCard: {
+    position: 'absolute',
+    bottom: 120,
+    left: 16,
+    right: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: colors.border + '30',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  calloutTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textTitle,
-    marginBottom: 4,
-  },
-  calloutLocation: {
-    fontSize: 12,
-    color: colors.textSub,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
   },
-  calloutStatusRow: {
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textTitle,
+    flex: 1,
+    marginRight: 10,
+  },
+  closeCardBtn: {
+    padding: 2,
+  },
+  cardLocation: {
+    fontSize: 13,
+    color: colors.textSub,
+    marginBottom: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
   },
-  calloutDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  calloutStatus: {
-    fontSize: 12,
-    color: colors.textSub,
-    fontWeight: '500',
-  },
-  calloutHint: {
-    fontSize: 11,
-    color: colors.primary,
+  statusText: {
+    fontSize: 13,
+    color: colors.textTitle,
     fontWeight: '600',
+  },
+  cardHint: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '700',
   },
   // Floating controls
   floatingButtons: {

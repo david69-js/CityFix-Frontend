@@ -191,24 +191,36 @@ export default function IssueDetailsScreen() {
 
   const handleArchiveIssue = async () => {
     if (!issue) return;
+    
+    const isCurrentlyHidden = issue.is_hidden;
+    const titleText = isCurrentlyHidden ? 'Restaurar Reporte' : 'Archivar Reporte';
+    const messageText = isCurrentlyHidden 
+      ? '¿Estás seguro de que deseas restaurar este reporte? Volverá a ser visible en el feed público.'
+      : '¿Estás seguro de que deseas archivar este reporte? Dejará de ser visible en el feed público.';
+    const confirmText = isCurrentlyHidden ? 'Sí, restaurar' : 'Sí, archivar';
+    
     Alert.alert(
-      'Archivar Reporte',
-      '¿Estás seguro de que deseas archivar este reporte? Dejará de ser visible en el feed público.',
+      titleText,
+      messageText,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
-          text: 'Sí, archivar', 
-          style: 'destructive',
+          text: confirmText, 
+          style: isCurrentlyHidden ? 'default' : 'destructive',
           onPress: async () => {
             try {
-              await updateIssueMutation.mutateAsync({
+              await toggleHiddenMutation.mutateAsync({
                 issueId: issue.id,
-                payload: { is_hidden: true } as any
               });
-              Alert.alert('Archivado', 'El reporte ha sido archivado correctamente.');
+              Alert.alert(
+                isCurrentlyHidden ? 'Restaurado' : 'Archivado',
+                isCurrentlyHidden 
+                  ? 'El reporte ha sido restaurado correctamente.'
+                  : 'El reporte ha sido archivado correctamente.'
+              );
               router.back();
             } catch (error) {
-              Alert.alert('Error', 'No se pudo archivar el reporte.');
+              Alert.alert('Error', `No se pudo ${isCurrentlyHidden ? 'restaurar' : 'archivar'} el reporte.`);
             }
           }
         }
@@ -243,13 +255,43 @@ export default function IssueDetailsScreen() {
 
   const handleUpdateStatus = (statusId: number) => {
     if (!issue) return;
-    updateStatusMutation.mutate({ issueId: issue.id, statusId }, {
-      onError: (e: any) => {
-        console.log("Status update error:", e?.response?.data || e);
-        const data = e?.response?.data;
-        alert('Error: ' + (data?.message || data?.error || 'No se pudo actualizar el estado.'));
-      }
-    });
+
+    const currentStatusId = Number(issue.status_id || issue.status?.id || 1);
+    if (statusId <= currentStatusId) {
+      Alert.alert(
+        'Acción No Permitida',
+        'No es posible volver a un estado anterior o asignar el mismo estado actual.',
+        [{ text: 'Entendido' }]
+      );
+      return;
+    }
+
+    const statusNames: Record<number, string> = {
+      1: 'Pendiente',
+      2: 'En Progreso',
+      3: 'Resuelto'
+    };
+    const targetStatusName = statusNames[statusId] || 'Desconocido';
+
+    Alert.alert(
+      '¿Estás seguro?',
+      `¿Estás seguro de que quieres cambiar el estado a "${targetStatusName}"?\nUna vez confirmado, no podrás volver a un estado anterior.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, cambiar',
+          onPress: () => {
+            updateStatusMutation.mutate({ issueId: issue.id, statusId }, {
+              onError: (e: any) => {
+                console.log("Status update error:", e?.response?.data || e);
+                const data = e?.response?.data;
+                alert('Error: ' + (data?.message || data?.error || 'No se pudo actualizar el estado.'));
+              }
+            });
+          }
+        }
+      ]
+    );
   };
 
   const handleToggleUpvote = () => {
@@ -451,34 +493,81 @@ export default function IssueDetailsScreen() {
             </View>
 
             {/* Quick Status Update for Admins and assigned workers */}
-            {user?.role_id === 1 || (user?.role_id === 2 && issue?.assigned_workers?.some(w => w.id === user?.id)) ? (
-              <View style={styles.adminActionContainer}>
-                <Text style={styles.adminActionLabel}>Actualizar Estado (Gestión):</Text>
-                <View style={styles.statusButtonsRow}>
-                  <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#F59E0B' }]}
-                    onPress={() => handleUpdateStatus(1)}
-                  >
-                    <Ionicons name="time-outline" size={14} color="#F59E0B" />
-                    <Text style={[styles.statusQuickBtnText, { color: '#F59E0B' }]}>Pendiente</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#3B82F6' }]}
-                    onPress={() => handleUpdateStatus(2)}
-                  >
-                    <Ionicons name="construct-outline" size={14} color="#3B82F6" />
-                    <Text style={[styles.statusQuickBtnText, { color: '#3B82F6' }]}>En Progreso</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.statusQuickBtn, { backgroundColor: colors.surface, borderColor: '#10B981' }]}
-                    onPress={() => handleUpdateStatus(3)}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={14} color="#10B981" />
-                    <Text style={[styles.statusQuickBtnText, { color: '#10B981' }]}>Resuelto</Text>
-                  </TouchableOpacity>
+            {(() => {
+              if (user?.role_id !== 1 && !(user?.role_id === 2 && issue?.assigned_workers?.some(w => w.id === user?.id))) {
+                return null;
+              }
+              const currentStatusId = Number(issue.status_id || issue.status?.id || 1);
+              const isBtn1Active = currentStatusId === 1;
+              const isBtn1Previous = 1 < currentStatusId;
+              const isBtn1Disabled = isBtn1Active || isBtn1Previous;
+
+              const isBtn2Active = currentStatusId === 2;
+              const isBtn2Previous = 2 < currentStatusId;
+              const isBtn2Disabled = isBtn2Active || isBtn2Previous;
+
+              const isBtn3Active = currentStatusId === 3;
+              const isBtn3Previous = 3 < currentStatusId;
+              const isBtn3Disabled = isBtn3Active || isBtn3Previous;
+
+              return (
+                <View style={styles.adminActionContainer}>
+                  <Text style={styles.adminActionLabel}>Actualizar Estado (Gestión):</Text>
+                  <View style={styles.statusButtonsRow}>
+                    {/* Pendiente */}
+                    <TouchableOpacity 
+                      style={[
+                        styles.statusQuickBtn, 
+                        isBtn1Active 
+                          ? { backgroundColor: '#F59E0B', borderColor: '#F59E0B' }
+                          : isBtn1Previous 
+                            ? { backgroundColor: colors.surface, borderColor: colors.border, opacity: 0.4 }
+                            : { backgroundColor: colors.surface, borderColor: '#F59E0B' }
+                      ]}
+                      onPress={() => handleUpdateStatus(1)}
+                      disabled={isBtn1Disabled}
+                    >
+                      <Ionicons name="time-outline" size={14} color={isBtn1Active ? '#FFFFFF' : isBtn1Previous ? colors.textLight : '#F59E0B'} />
+                      <Text style={[styles.statusQuickBtnText, { color: isBtn1Active ? '#FFFFFF' : isBtn1Previous ? colors.textLight : '#F59E0B' }]}>Pendiente</Text>
+                    </TouchableOpacity>
+
+                    {/* En Progreso */}
+                    <TouchableOpacity 
+                      style={[
+                        styles.statusQuickBtn, 
+                        isBtn2Active 
+                          ? { backgroundColor: '#3B82F6', borderColor: '#3B82F6' }
+                          : isBtn2Previous 
+                            ? { backgroundColor: colors.surface, borderColor: colors.border, opacity: 0.4 }
+                            : { backgroundColor: colors.surface, borderColor: '#3B82F6' }
+                      ]}
+                      onPress={() => handleUpdateStatus(2)}
+                      disabled={isBtn2Disabled}
+                    >
+                      <Ionicons name="construct-outline" size={14} color={isBtn2Active ? '#FFFFFF' : isBtn2Previous ? colors.textLight : '#3B82F6'} />
+                      <Text style={[styles.statusQuickBtnText, { color: isBtn2Active ? '#FFFFFF' : isBtn2Previous ? colors.textLight : '#3B82F6' }]}>En Progreso</Text>
+                    </TouchableOpacity>
+
+                    {/* Resuelto */}
+                    <TouchableOpacity 
+                      style={[
+                        styles.statusQuickBtn, 
+                        isBtn3Active 
+                          ? { backgroundColor: '#10B981', borderColor: '#10B981' }
+                          : isBtn3Previous 
+                            ? { backgroundColor: colors.surface, borderColor: colors.border, opacity: 0.4 }
+                            : { backgroundColor: colors.surface, borderColor: '#10B981' }
+                      ]}
+                      onPress={() => handleUpdateStatus(3)}
+                      disabled={isBtn3Disabled}
+                    >
+                      <Ionicons name="checkmark-circle-outline" size={14} color={isBtn3Active ? '#FFFFFF' : isBtn3Previous ? colors.textLight : '#10B981'} />
+                      <Text style={[styles.statusQuickBtnText, { color: isBtn3Active ? '#FFFFFF' : isBtn3Previous ? colors.textLight : '#10B981' }]}>Resuelto</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ) : null}
+              );
+            })()}
 
             {/* Separator if both sections are present */}
             {user?.role_id === 1 && (
