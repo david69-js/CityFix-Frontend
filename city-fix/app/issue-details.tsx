@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dim
 // import * as ImageManipulator from 'expo-image-manipulator';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden, useUpdateIssue } from '../src/hooks/useIssues';
+import { useIssueDetails, useIssueHistory, useIssueComments, useAddComment, useToggleUpvote, useUpdateIssueStatus, useWorkers, useAssignWorker, useIssuesFeed, useToggleIssueHidden, useUpdateIssue, useDeleteComment } from '../src/hooks/useIssues';
 import { useCategories } from '../src/hooks/useCategories';
 import { formatDate } from '../src/utils/date';
 import { useAuthStore } from '../src/store/authStore';
@@ -37,6 +37,7 @@ export default function IssueDetailsScreen() {
   const { data: feedData } = useIssuesFeed(100);
   const { data: categories } = useCategories();
   const updateIssueMutation = useUpdateIssue();
+  const deleteCommentMutation = useDeleteComment();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [newComment, setNewComment] = React.useState('');
@@ -329,6 +330,31 @@ export default function IssueDetailsScreen() {
     }
   };
 
+  const handleDeleteComment = (commentId: number) => {
+    Alert.alert(
+      'Eliminar comentario',
+      '¿Estás seguro de que deseas eliminar este comentario?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCommentMutation.mutateAsync({ commentId });
+              Alert.alert('Comentario eliminado', 'El comentario se ha eliminado correctamente.');
+              refetchDetails();
+            } catch (error: any) {
+              const serverMsg = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+              console.error('Error al eliminar comentario:', serverMsg);
+              Alert.alert('Error', 'No se pudo eliminar el comentario. Inténtalo de nuevo.');
+            }
+          } 
+        }
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -387,10 +413,10 @@ export default function IssueDetailsScreen() {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Detalles del Reporte</Text>
             <View style={{ flexDirection: 'row' }}>
-              {isOwner && (
+              {(isOwner || user?.role_id === 1) && (
                 <TouchableOpacity 
                   onPress={() => isEditing ? handleUpdateIssue() : setIsEditing(true)} 
-                  style={[styles.iconButton, { marginRight: 8 }]}
+                  style={[styles.iconButton, isEditing && { marginRight: 8 }]}
                 >
                   <Ionicons 
                     name={isEditing ? "save-outline" : "create-outline"} 
@@ -399,13 +425,9 @@ export default function IssueDetailsScreen() {
                   />
                 </TouchableOpacity>
               )}
-              {isEditing ? (
+              {isEditing && (
                 <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.iconButton}>
                   <Ionicons name="close-outline" size={24} color={colors.danger} />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.iconButton}>
-                  <Ionicons name="share-social-outline" size={24} color={colors.textTitle} />
                 </TouchableOpacity>
               )}
             </View>
@@ -880,6 +902,14 @@ export default function IssueDetailsScreen() {
                         <Text style={styles.commentUser}>{comment.user?.first_name} {comment.user?.last_name}</Text>
                         <Text style={styles.commentTime}>{formatDate(comment.created_at)}</Text>
                       </View>
+                      {(user?.role_id === 1 || comment.user_id === user?.id || comment.user?.id === user?.id) && (
+                        <TouchableOpacity 
+                          onPress={() => handleDeleteComment(comment.id)}
+                          style={{ padding: 8 }}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Text style={styles.commentText}>{comment.comment}</Text>
                   </View>
@@ -919,31 +949,74 @@ export default function IssueDetailsScreen() {
             <Text style={styles.sectionTitle}>Línea de Tiempo de Actualizaciones</Text>
             
             <View style={styles.timelineContainer}>
-              {/* Start Node */}
-              <View style={styles.timelineItem}>
-                <View style={styles.timelineNodeContainer}>
-                  <View style={[styles.timelineDot, { backgroundColor: colors.orangeDot }]} />
-                  <View style={[styles.timelineLine, { backgroundColor: historyData?.history?.length > 0 ? colors.timelineLine : 'transparent' }]} />
-                </View>
-                <View style={styles.timelineContent}>
-                  <Text style={styles.timelineTitle}>Reporte creado correctamente</Text>
-                  <Text style={styles.timelineTime}>{formatDate(issue.created_at)}</Text>
-                </View>
-              </View>
+              {(() => {
+                const getStatusPriority = (statusName: string): number => {
+                  const name = statusName.toLowerCase();
+                  if (name.includes('resuelto') || name.includes('listo') || name.includes('finalizado')) return 1;
+                  if (name.includes('proceso') || name.includes('progreso')) return 2;
+                  if (name.includes('creado') || name.includes('pendiente') || name.includes('reportado')) return 3;
+                  return 4;
+                };
 
-              {/* History Nodes */}
-              {historyData?.history?.map((log: any, index: number) => (
-                <View key={index} style={styles.timelineItem}>
-                  <View style={styles.timelineNodeContainer}>
-                    <View style={[styles.timelineDot, { backgroundColor: log.status.toLowerCase().includes('resuelto') ? '#10B981' : colors.blueDot }]} />
-                    <View style={[styles.timelineLine, { backgroundColor: index === historyData.history.length - 1 ? 'transparent' : colors.timelineLine }]} />
-                  </View>
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineTitle}>{log.status} - {log.changed_by}</Text>
-                    <Text style={styles.timelineTime}>{formatDate(log.changed_at)} • Hace {log.time_since_last_change}</Text>
-                  </View>
-                </View>
-              ))}
+                const fullTimeline = [
+                  ...(historyData?.history || []).map((log: any) => ({
+                    ...log,
+                    is_creation: false
+                  })),
+                  {
+                    status: "Reporte creado correctamente",
+                    changed_by: null,
+                    changed_at: issue.created_at,
+                    is_creation: true
+                  }
+                ];
+
+                // Sort strictly: priority first, then date descending
+                fullTimeline.sort((a, b) => {
+                  const pA = getStatusPriority(a.status);
+                  const pB = getStatusPriority(b.status);
+                  if (pA !== pB) return pA - pB;
+                  return new Date(b.changed_at || b.created_at || 0).getTime() - new Date(a.changed_at || a.created_at || 0).getTime();
+                });
+
+                return fullTimeline.map((item: any, index: number) => {
+                  const isLast = index === fullTimeline.length - 1;
+                  const isCreation = item.is_creation;
+                  
+                  let dotColor = colors.blueDot;
+                  if (isCreation) {
+                    dotColor = colors.orangeDot;
+                  } else if (item.status.toLowerCase().includes('resuelto')) {
+                    dotColor = '#10B981';
+                  } else if (item.status.toLowerCase().includes('proceso') || item.status.toLowerCase().includes('progreso')) {
+                    dotColor = '#3B82F6';
+                  }
+
+                  return (
+                    <View key={index} style={styles.timelineItem}>
+                      <View style={styles.timelineNodeContainer}>
+                        <View style={[styles.timelineDot, { backgroundColor: dotColor }]} />
+                        <View style={[styles.timelineLine, { backgroundColor: isLast ? 'transparent' : colors.timelineLine }]} />
+                      </View>
+                      <View style={styles.timelineContent}>
+                        {isCreation ? (
+                          <>
+                            <Text style={styles.timelineTitle}>{item.status}</Text>
+                            <Text style={styles.timelineTime}>{formatDate(item.changed_at)}</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.timelineTitle}>{item.status}{item.changed_by ? ` - ${item.changed_by}` : ''}</Text>
+                            <Text style={styles.timelineTime}>
+                              {formatDate(item.changed_at)}{item.time_since_last_change ? ` • Hace ${item.time_since_last_change}` : ''}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  );
+                });
+              })()}
             </View>
 
             {/* Archive Action (Exclusive for Owner or Admin) */}

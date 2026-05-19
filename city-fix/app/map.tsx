@@ -214,9 +214,12 @@ export default function MapScreen() {
                 </TouchableOpacity>
               </View>
               
-              <Text style={styles.cardLocation} numberOfLines={1}>
-                📍 {selectedReport.location || 'Sin ubicación'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Ionicons name="location-outline" size={16} color={colors.textLight} style={{ marginRight: 4 }} />
+                <Text style={[styles.cardLocation, { marginBottom: 0, flex: 1 }]} numberOfLines={1}>
+                  {selectedReport.location || 'Sin ubicación'}
+                </Text>
+              </View>
 
               <View style={styles.cardFooter}>
                 <View style={styles.statusRow}>

@@ -100,7 +100,7 @@ export default function AssignmentsScreen() {
 const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { 
-    paddingTop: Platform.OS === 'android' ? 25 : 16, 
+    paddingTop: Platform.OS === 'ios' ? 24 : (Platform.OS === 'android' ? 40 : 16), 
     paddingBottom: 16, 
     alignItems: 'center' 
   },

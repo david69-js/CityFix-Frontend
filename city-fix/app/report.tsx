@@ -150,23 +150,21 @@ export default function ReportIssueScreen() {
       setLongitude(location.coords.longitude);
       
       // Try to reverse geocode via backend proxy for a human-readable address
-      if (!locationText) {
-        try {
-          const result = await reverseGeocodeMutation.mutateAsync({
-            lat: location.coords.latitude,
-            lng: location.coords.longitude,
-          });
-          if (result?.results?.[0]?.formatted_address) {
-            setLocationText(result.results[0].formatted_address);
-          } else {
-            // Fallback to raw coordinates
-            setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
-          }
-        } catch (geoError) {
-          // Fallback to raw coordinates if reverse geocoding fails
-          console.warn('[Report] Reverse geocode failed, using coordinates:', geoError);
+      try {
+        const result = await reverseGeocodeMutation.mutateAsync({
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        });
+        if (result?.results?.[0]?.formatted_address) {
+          setLocationText(result.results[0].formatted_address);
+        } else {
+          // Fallback to raw coordinates
           setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
         }
+      } catch (geoError) {
+        // Fallback to raw coordinates if reverse geocoding fails
+        console.warn('[Report] Reverse geocode failed, using coordinates:', geoError);
+        setLocationText(`${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}`);
       }
     } catch (e) {
       alert('No se pudo obtener la ubicación actual.');
@@ -315,26 +313,31 @@ export default function ReportIssueScreen() {
               <Text style={styles.label}>
                 Ubicación (Referencia) <Text style={styles.asterisk}>*</Text>
               </Text>
-              <View style={styles.locationInputWrapper}>
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                style={styles.locationInputWrapper}
+                onPress={handleFetchLocation}
+                disabled={isFetchingLocation}
+              >
                 <Ionicons name="location-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.locationInput}
-                  placeholder="Dirección o referencia"
+                  style={[styles.locationInput, { pointerEvents: 'none' }]}
+                  placeholder="Presiona para obtener ubicación GPS *"
                   placeholderTextColor={colors.textLight}
                   value={locationText}
-                  onChangeText={setLocationText}
+                  editable={false}
                 />
-              </View>
-              
-              <TouchableOpacity style={styles.useCurrentLocationBtn} onPress={handleFetchLocation} disabled={isFetchingLocation}>
-                {isFetchingLocation ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name={latitude ? "checkmark-circle" : "location-outline"} size={16} color={latitude ? colors.primary : '#F59E0B'} />
-                )}
-                <Text style={[styles.useCurrentLocationText, latitude !== null ? { color: colors.primary } : undefined]}>
-                  {latitude ? 'Ubicación GPS capturada' : 'Obtener mi ubicación GPS actual *'}
-                </Text>
+                <View style={styles.gpsIconButton}>
+                  {isFetchingLocation ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Ionicons 
+                      name={latitude ? "locate" : "locate-outline"} 
+                      size={22} 
+                      color={latitude ? colors.workerGreen : '#F59E0B'} 
+                    />
+                  )}
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -445,6 +448,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   locationInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16 },
   inputIcon: { marginRight: 10 },
   locationInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: colors.textTitle },
+  gpsIconButton: { padding: 8, marginRight: -8, justifyContent: 'center', alignItems: 'center' },
   useCurrentLocationBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   useCurrentLocationText: { color: '#F59E0B', fontSize: 13, fontWeight: '600', marginLeft: 6 },
   photoUploadArea: { borderWidth: 2, borderColor: '#D1D5DB', borderStyle: 'dashed', borderRadius: 12, height: 160, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface, overflow: 'hidden' },

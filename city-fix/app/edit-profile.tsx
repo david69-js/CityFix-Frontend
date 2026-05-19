@@ -309,7 +309,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: Platform.OS === 'ios' ? 28 : 35,
+    paddingBottom: 16,
     backgroundColor: colors.surface,
   },
   backButton: {

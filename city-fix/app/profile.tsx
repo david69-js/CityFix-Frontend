@@ -188,50 +188,89 @@ export default function ProfileScreen() {
           <View style={styles.card}>
 
             {/* Hero */}
-            <View style={styles.achieveRow}>
-              <View style={[styles.achieveIconBg, { backgroundColor: colors.orangeHero }]}>
-                <MaterialCommunityIcons name="medal-outline" size={24} color="#FFF" />
-              </View>
-              <View style={styles.achieveTextCol}>
-                <Text style={styles.achieveTitle}>Héroe de la Comunidad</Text>
-                <Text style={styles.achieveDesc}>Primer reporte realizado</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: colors.badgeYellowBg }]}>
-                <Text style={[styles.badgeText, { color: colors.badgeYellowText }]}>Desbloqueado</Text>
-              </View>
-            </View>
+            {(() => {
+              const isHeroUnlocked = totalReports >= 1;
+              return (
+                <View style={styles.achieveRow}>
+                  <View style={[styles.achieveIconBg, { backgroundColor: isHeroUnlocked ? colors.orangeHero : colors.badgeGreyBg }]}>
+                    <MaterialCommunityIcons 
+                      name="medal-outline" 
+                      size={24} 
+                      color={isHeroUnlocked ? "#FFF" : colors.badgeGreyText} 
+                    />
+                  </View>
+                  <View style={styles.achieveTextCol}>
+                    <Text style={[styles.achieveTitle, !isHeroUnlocked && { color: colors.textLight }]}>
+                      Héroe de la Comunidad
+                    </Text>
+                    <Text style={styles.achieveDesc}>Primer reporte realizado</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: isHeroUnlocked ? colors.badgeYellowBg : colors.badgeGreyBg }]}>
+                    <Text style={[styles.badgeText, { color: isHeroUnlocked ? colors.badgeYellowText : colors.badgeGreyText }]}>
+                      {isHeroUnlocked ? 'Desbloqueado' : 'Bloqueado'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
 
             <View style={styles.divider} />
 
             {/* Influencer */}
-            <View style={styles.achieveRow}>
-              <View style={[styles.achieveIconBg, { backgroundColor: colors.blueInfluencer }]}>
-                <Ionicons name="trending-up" size={24} color="#FFF" />
-              </View>
-              <View style={styles.achieveTextCol}>
-                <Text style={styles.achieveTitle}>Influencer</Text>
-                <Text style={styles.achieveDesc}>Primera interacción</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: colors.badgeBlueBg }]}>
-                <Text style={[styles.badgeText, { color: colors.badgeBlueText }]}>Desbloqueado</Text>
-              </View>
-            </View>
+            {(() => {
+              const isInfluencerUnlocked = totalReports >= 1 || totalVotes >= 1;
+              return (
+                <View style={styles.achieveRow}>
+                  <View style={[styles.achieveIconBg, { backgroundColor: isInfluencerUnlocked ? colors.blueInfluencer : colors.badgeGreyBg }]}>
+                    <Ionicons 
+                      name="trending-up" 
+                      size={24} 
+                      color={isInfluencerUnlocked ? "#FFF" : colors.badgeGreyText} 
+                    />
+                  </View>
+                  <View style={styles.achieveTextCol}>
+                    <Text style={[styles.achieveTitle, !isInfluencerUnlocked && { color: colors.textLight }]}>
+                      Influencer
+                    </Text>
+                    <Text style={styles.achieveDesc}>Primera interacción (voto o reporte)</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: isInfluencerUnlocked ? colors.badgeBlueBg : colors.badgeGreyBg }]}>
+                    <Text style={[styles.badgeText, { color: isInfluencerUnlocked ? colors.badgeBlueText : colors.badgeGreyText }]}>
+                      {isInfluencerUnlocked ? 'Desbloqueado' : 'Bloqueado'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
 
             <View style={styles.divider} />
 
             {/* Super Reporter */}
-            <View style={styles.achieveRow}>
-              <View style={[styles.achieveIconBg, { backgroundColor: colors.greySuper }]}>
-                <MaterialCommunityIcons name="medal-outline" size={24} color="#FFF" />
-              </View>
-              <View style={styles.achieveTextCol}>
-                <Text style={[styles.achieveTitle, { color: colors.textLight }]}>Súper Reportero</Text>
-                <Text style={styles.achieveDesc}>Reportó 50 problemas (12/50)</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: colors.badgeGreyBg }]}>
-                <Text style={[styles.badgeText, { color: colors.badgeGreyText }]}>Bloqueado</Text>
-              </View>
-            </View>
+            {(() => {
+              const isSuperReporterUnlocked = totalReports >= 50;
+              return (
+                <View style={styles.achieveRow}>
+                  <View style={[styles.achieveIconBg, { backgroundColor: isSuperReporterUnlocked ? colors.greySuper : colors.badgeGreyBg }]}>
+                    <MaterialCommunityIcons 
+                      name="medal-outline" 
+                      size={24} 
+                      color={isSuperReporterUnlocked ? "#FFF" : colors.badgeGreyText} 
+                    />
+                  </View>
+                  <View style={styles.achieveTextCol}>
+                    <Text style={[styles.achieveTitle, !isSuperReporterUnlocked && { color: colors.textLight }]}>
+                      Súper Reportero
+                    </Text>
+                    <Text style={styles.achieveDesc}>Reportó 50 problemas ({totalReports}/50)</Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: isSuperReporterUnlocked ? colors.badgeYellowBg : colors.badgeGreyBg }]}>
+                    <Text style={[styles.badgeText, { color: isSuperReporterUnlocked ? colors.badgeYellowText : colors.badgeGreyText }]}>
+                      {isSuperReporterUnlocked ? 'Desbloqueado' : 'Bloqueado'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
 
           </View>
 

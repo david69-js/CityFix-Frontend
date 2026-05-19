@@ -23,14 +23,14 @@ export default function CityReporterDashboard() {
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
-  
+
   // Combinamos ambas fuentes de datos para mayor seguridad
   const { data: adminUsers, isLoading: adminUsersLoading } = useAdminUsers();
   const { data: regularUsers, isLoading: regularUsersLoading } = useUsers();
-  
+
   const users = React.useMemo(() => {
     const list = Array.isArray(adminUsers) && adminUsers.length > 0 ? adminUsers : (Array.isArray(regularUsers) ? regularUsers : []);
-    
+
     return list;
   }, [adminUsers, regularUsers]);
 
@@ -61,7 +61,7 @@ export default function CityReporterDashboard() {
   });
 
   const allReports = (feedData?.pages.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
-  
+
   // Hook para estadísticas globales (independiente de los filtros)
   const { data: globalStats } = useGlobalStats();
 
@@ -69,8 +69,8 @@ export default function CityReporterDashboard() {
   const reports = React.useMemo(() => {
     let filtered = allReports;
     if (selectedUserId) {
-      filtered = filtered.filter(r => 
-        Number(r.user_id) === Number(selectedUserId) || 
+      filtered = filtered.filter(r =>
+        Number(r.user_id) === Number(selectedUserId) ||
         Number(r.user?.id) === Number(selectedUserId)
       );
     }
@@ -101,7 +101,7 @@ export default function CityReporterDashboard() {
       Alert.alert('Cargando...', 'Estamos obteniendo la lista de ciudadanos...');
       return;
     }
-    
+
     // Siempre empezamos con la opción de limpiar filtro
     const options: any[] = [
       {
@@ -143,7 +143,7 @@ export default function CityReporterDashboard() {
         onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
           const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
           if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200 &&
-              hasNextPage && !isFetchingNextPage) {
+            hasNextPage && !isFetchingNextPage) {
             fetchNextPage();
           }
         }}
@@ -167,7 +167,7 @@ export default function CityReporterDashboard() {
               <View style={styles.headerTopRow}>
                 <View>
                   <View style={styles.titleWithIcon}>
-                    <Ionicons name="business" size={32} color="#FFF" style={{ marginRight: 10 }} />
+
                     <Text style={styles.headerTitle}>CityFix</Text>
                   </View>
                   <Text style={styles.headerSubtitle}>Transformando el futuro urbano</Text>
@@ -252,13 +252,13 @@ export default function CityReporterDashboard() {
         {/* Modern User Filter Bar */}
         <View style={styles.userFilterContainer}>
           <Text style={styles.filterLabel}>Filtrar por Ciudadano</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.userScrollContent}
           >
             {/* "All" Option */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.userChip, !selectedUserId && styles.userChipActive]}
               onPress={() => setSelectedUserId(undefined)}
             >
@@ -272,7 +272,7 @@ export default function CityReporterDashboard() {
               <ActivityIndicator style={{ marginLeft: 20 }} color={colors.primary} />
             ) : (
               Array.isArray(users) && users.map((u: any) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={u.id}
                   style={[styles.userChip, selectedUserId === u.id && styles.userChipActive]}
                   onPress={() => setSelectedUserId(selectedUserId === u.id ? undefined : u.id)}
@@ -413,413 +413,415 @@ export default function CityReporterDashboard() {
   );
 }
 
-const getStyles = (colors: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerWrapper: {
-    paddingBottom: 20,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  headerBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    backgroundColor: colors.primary,
-  },
-  headerCircle1: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  headerCircle2: {
-    position: 'absolute',
-    bottom: 20,
-    left: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  headerContent: {
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-    paddingHorizontal: 20,
-    paddingBottom: 25,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  notificationBell: {
-    padding: 8,
-    position: 'relative',
-  },
-  bellGlass: {
-    padding: 10,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#EF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  notificationBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  headerTitle: {
-    fontSize: 38,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: -1,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: '600',
-    marginTop: -2,
-  },
-  titleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 5,
-  },
-  statCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: 15,
-    alignItems: 'center',
-    width: (width - 60) / 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  statCardActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    borderWidth: 2,
-    transform: [{ scale: 1.05 }],
-    elevation: 8,
-  },
-  statIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.textTitle,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.textTitle,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginTop: 10,
-    justifyContent: 'space-between',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: 20,
-    marginTop: 24,
-    opacity: 0.6,
-  },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: colors.orangeHero, // Gold
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginRight: 10,
-    shadowColor: colors.orangeHero,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginLeft: 10,
-    borderWidth: 1.5,
-    borderColor: colors.blueInfluencer,
-  },
-  secondaryButtonText: {
-    color: colors.blueInfluencer,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  btnIcon: {
-    marginRight: 6,
-  },
-  sectionHeader: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textTitle,
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-  },
-  reportCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    flexDirection: 'row',
-    padding: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  reportImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: '#E5E7EB',
-  },
-  imagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: '#FAFAFA',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questionMarkBox: {
-    backgroundColor: '#EEF4FF',
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 4,
-  },
-  questionMarkText: {
-    color: colors.iconBlueFg,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  reportDetails: {
-    flex: 1,
-    marginLeft: 14,
-    justifyContent: 'space-between',
-    height: 80,
-  },
-  reportHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  reportTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textTitle,
-    flex: 1,
-    marginRight: 8,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  locationText: {
-    fontSize: 12,
-    color: colors.textTitle,
-    marginLeft: 4,
-  },
-  reportFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  categoryTagText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  metaInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    fontSize: 12,
-    color: colors.textSub,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textTitle,
-  },
-  userFilterContainer: {
-    marginTop: 16,
-    paddingLeft: 20,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textTitle,
-    marginBottom: 12,
-  },
-  userScrollContent: {
-    paddingRight: 20,
-    paddingBottom: 4,
-  },
-  userChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 24,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  userChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  avatarCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  chipAvatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarInitial: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  userChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textTitle,
-  },
-});
+const getStyles = (colors: any) => {
+  const cardBg = colors.background === '#FFFFFF' ? '#F9FAFB' : '#192030';
+
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    headerWrapper: {
+      paddingBottom: 20,
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    headerBg: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+      backgroundColor: colors.primary,
+    },
+    headerCircle1: {
+      position: 'absolute',
+      top: -50,
+      right: -50,
+      width: 200,
+      height: 200,
+      borderRadius: 100,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    headerCircle2: {
+      position: 'absolute',
+      bottom: 20,
+      left: -30,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    scrollContent: {
+      paddingBottom: 20,
+    },
+    headerContent: {
+      paddingTop: Platform.OS === 'android' ? 40 : 10,
+      paddingHorizontal: 20,
+      paddingBottom: 25,
+    },
+    headerTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    notificationBell: {
+      padding: 8,
+      position: 'relative',
+    },
+    bellGlass: {
+      padding: 10,
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
+    notificationBadge: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: '#EF4444',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    notificationBadgeText: {
+      color: '#FFF',
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    headerTitle: {
+      fontSize: 70,
+      fontWeight: '900',
+      color: '#FFF',
+      letterSpacing: -1,
+      textShadowColor: 'rgba(0, 0, 0, 0.1)',
+      textShadowOffset: { width: 0, height: 2 },
+      textShadowRadius: 4,
+    },
+    headerSubtitle: {
+      fontSize: 16,
+      color: 'rgba(255,255,255,0.8)',
+      fontWeight: '600',
+      marginTop: -2,
+    },
+    titleWithIcon: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 0,
+    },
+    statsContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      marginTop: 5,
+    },
+    statCard: {
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      borderRadius: 20,
+      paddingVertical: 15,
+      alignItems: 'center',
+      width: (width - 60) / 3,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.12)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+    },
+    statCardActive: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: 'rgba(255, 255, 255, 0.4)',
+      borderWidth: 1.5,
+      transform: [{ scale: 1.05 }],
+    },
+    statIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    statValue: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: '#FFF',
+      marginBottom: 2,
+    },
+    statLabel: {
+      fontSize: 11,
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    actionsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      marginTop: 10,
+      justifyContent: 'space-between',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginHorizontal: 20,
+      marginTop: 24,
+      opacity: 0.6,
+    },
+    primaryButton: {
+      flex: 1,
+      backgroundColor: colors.orangeHero, // Gold
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 12,
+      marginRight: 10,
+      shadowColor: colors.orangeHero,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    primaryButtonText: {
+      color: '#FFF',
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    secondaryButton: {
+      flex: 1,
+      backgroundColor: cardBg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 12,
+      marginLeft: 10,
+      borderWidth: 1.5,
+      borderColor: colors.blueInfluencer,
+    },
+    secondaryButtonText: {
+      color: colors.blueInfluencer,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    btnIcon: {
+      marginRight: 6,
+    },
+    sectionHeader: {
+      paddingHorizontal: 20,
+      marginTop: 30,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.textTitle,
+    },
+    listContainer: {
+      paddingHorizontal: 20,
+    },
+    reportCard: {
+      backgroundColor: cardBg,
+      borderRadius: 16,
+      flexDirection: 'row',
+      padding: 12,
+      marginBottom: 16,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 3,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    reportImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 10,
+      backgroundColor: '#E5E7EB',
+    },
+    imagePlaceholder: {
+      width: 80,
+      height: 80,
+      borderRadius: 10,
+      backgroundColor: '#FAFAFA',
+      borderWidth: 1,
+      borderColor: '#F3F4F6',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    questionMarkBox: {
+      backgroundColor: '#EEF4FF',
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 4,
+    },
+    questionMarkText: {
+      color: colors.iconBlueFg,
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+    reportDetails: {
+      flex: 1,
+      marginLeft: 14,
+      justifyContent: 'space-between',
+      height: 80,
+    },
+    reportHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    reportTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textTitle,
+      flex: 1,
+      marginRight: 8,
+    },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusText: {
+      fontSize: 10,
+      fontWeight: '600',
+      marginLeft: 4,
+    },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    locationText: {
+      fontSize: 12,
+      color: colors.textTitle,
+      marginLeft: 4,
+    },
+    reportFooterRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    categoryTag: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    categoryTagText: {
+      color: '#FFF',
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    metaInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    metaText: {
+      fontSize: 12,
+      color: colors.textSub,
+      marginLeft: 4,
+      fontWeight: '500',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      borderRadius: 12,
+      marginHorizontal: 20,
+      marginTop: 16,
+      paddingHorizontal: 14,
+      height: 48,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    searchIcon: {
+      marginRight: 10,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.textTitle,
+    },
+    userFilterContainer: {
+      marginTop: 16,
+      paddingLeft: 20,
+    },
+    filterLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textTitle,
+      marginBottom: 12,
+    },
+    userScrollContent: {
+      paddingRight: 20,
+      paddingBottom: 4,
+    },
+    userChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: cardBg,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 24,
+      marginRight: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    },
+    userChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    avatarCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: '#F3F4F6',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: 'transparent',
+      overflow: 'hidden',
+    },
+    chipAvatar: {
+      width: '100%',
+      height: '100%',
+    },
+    avatarInitial: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: colors.primary,
+    },
+    userChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textTitle,
+    },
+  });
+};

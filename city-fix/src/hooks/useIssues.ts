@@ -353,6 +353,24 @@ export const useAddComment = () => {
       queryClient.invalidateQueries({ queryKey: ['issues', 'comments'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.notifications && queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+};
+
+export const useDeleteComment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId }: { commentId: number }) => {
+      const response = await apiClient.delete(`/comments/${commentId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'comments'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -710,6 +728,29 @@ export const useToggleIssueHidden = () => {
       const idStr = String(issueId);
       queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'global-stats'] }); // Actualizar contadores del dashboard
+      queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });
+    },
+  });
+};
+
+/**
+ * Delete an issue.
+ * DELETE /api/issues/{id}
+ */
+export const useDeleteIssue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ issueId }: { issueId: number }) => {
+      const response = await apiClient.delete(`/issues/${issueId}`);
+      return response.data;
+    },
+    onSuccess: (_, { issueId }) => {
+      const idStr = String(issueId);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'issues'] });
+      queryClient.invalidateQueries({ queryKey: ['issues', 'global-stats'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'details', idStr] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'feed'] });
       queryClient.invalidateQueries({ queryKey: ['issues', 'my-issues'] });

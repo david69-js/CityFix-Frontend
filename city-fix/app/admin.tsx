@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Share, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, TextInput, Alert, ActivityIndicator, Share, Modal, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Image } from 'react-native';
@@ -10,7 +10,7 @@ import apiClient from '../src/api/axios';
 import { useSendCampaign } from '../src/hooks/useNotifications';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
-import { useAdminIssues, useToggleIssueHidden } from '../src/hooks/useIssues';
+import { useAdminIssues, useToggleIssueHidden, useDeleteIssue } from '../src/hooks/useIssues';
 import { useAdminUsers, useToggleUserActive, useAdminUpdateUser } from '../src/hooks/useAdmin';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -88,6 +88,7 @@ export default function AdminScreen() {
 
   const { data: archivedIssues, isLoading: loadingArchived } = useAdminIssues({ is_hidden: true });
   const toggleIssueHiddenMutation = useToggleIssueHidden();
+  const deleteIssueMutation = useDeleteIssue();
 
   const { data: userList } = useAdminUsers();
   const toggleUserActiveMutation = useToggleUserActive();
@@ -297,6 +298,28 @@ export default function AdminScreen() {
               Alert.alert('Éxito', `Usuario ${action}do correctamente`);
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || `Error al ${action} usuario`);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteIssue = async (issueId: number, issueTitle: string) => {
+    Alert.alert(
+      'Eliminar reporte',
+      `¿Estás seguro de que deseas eliminar permanentemente el reporte "${issueTitle}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteIssueMutation.mutateAsync({ issueId });
+              Alert.alert('Éxito', 'Reporte eliminado correctamente.');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Error al eliminar el reporte.');
             }
           },
         },
@@ -552,12 +575,20 @@ export default function AdminScreen() {
                           <Text style={styles.userName}>{i.title}</Text>
                           <Text style={styles.userEmail}>Motivo: {i.hidden_reason || 'Ninguno'}</Text>
                         </View>
-                        <TouchableOpacity
-                          style={styles.userActionBtn}
-                          onPress={() => toggleIssueHiddenMutation.mutate({ issueId: i.id })}
-                        >
-                          <Ionicons name="eye-outline" size={20} color={colors.primary} />
-                        </TouchableOpacity>
+                        <View style={styles.userActions}>
+                          <TouchableOpacity
+                            style={styles.userActionBtn}
+                            onPress={() => toggleIssueHiddenMutation.mutate({ issueId: i.id })}
+                          >
+                            <Ionicons name="eye-outline" size={20} color={colors.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.userActionBtn}
+                            onPress={() => handleDeleteIssue(i.id, i.title)}
+                          >
+                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))}
                     {(!archivedIssues?.data || archivedIssues.data.length === 0) && (
@@ -743,7 +774,14 @@ function CampaignSection() {
 const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   headerArea: { backgroundColor: colors.adminHighlight, paddingBottom: 20 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 20 },
+  headerTop: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    marginTop: Platform.OS === 'ios' ? 10 : 25,
+    paddingTop: Platform.OS === 'ios' ? 14 : 15,
+  },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   reportsButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 6 },
   reportsButtonText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
