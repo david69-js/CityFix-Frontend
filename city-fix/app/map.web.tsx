@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator, Platform } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useIssuesFeed } from '../src/hooks/useIssues';
 import { useAuthStore } from '../src/store/authStore';
@@ -20,11 +20,15 @@ const getMarkerColor = (statusName?: string): string => {
 
 export default function MapScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
   const { data: feedData, isLoading } = useIssuesFeed(100);
   const [activeFilter, setActiveFilter] = useState('Todos');
+
+  const initialLat = params.latitude ? Number(params.latitude) : null;
+  const initialLng = params.longitude ? Number(params.longitude) : null;
 
   const allReports = (feedData?.pages?.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
 
@@ -56,6 +60,9 @@ export default function MapScreen() {
   const baseLng = allReports.find(r => r.longitude)?.longitude || -66.1568;
 
   const embedSrc = useMemo(() => {
+    if (initialLat && initialLng) {
+      return `https://maps.google.com/maps?q=${initialLat},${initialLng}&z=16&output=embed`;
+    }
     const markers = filteredReports
       .filter(r => r.latitude && r.longitude)
       .map(r => `${r.latitude},${r.longitude}`)
@@ -64,7 +71,7 @@ export default function MapScreen() {
       return `https://maps.google.com/maps?q=${baseLat},${baseLng}&z=14&output=embed`;
     }
     return `https://maps.google.com/maps?q=${markers.split('|')[0]}&z=14&output=embed`;
-  }, [filteredReports]);
+  }, [filteredReports, initialLat, initialLng]);
 
   return (
     <View style={styles.safeArea}>

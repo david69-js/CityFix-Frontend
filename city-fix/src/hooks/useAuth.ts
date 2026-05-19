@@ -47,6 +47,7 @@ interface AuthResponse {
       name: string;
     };
     role_id?: number;
+    is_active?: boolean | number;
   };
 }
 
@@ -63,24 +64,34 @@ export const useLogin = () => {
       
       const activeToken = data.token || data.access_token;
       
-      // If the backend ALREADY supplied the user, we return immediately
+      // If the backend ALREADY supplied the user, we check status and return immediately
       if (data.user) {
+        if (data.user.is_active === false || Number(data.user.is_active) === 0) {
+          throw { response: { status: 403, data: { message: 'Tu cuenta ha sido deshabilitada. Ponte en contacto con el administrador.' } } };
+        }
         return data;
       }
 
-      // Fallback: If for some reason the user is missing but we have a token, fetch it
       // Fallback: If for some reason the user is missing but we have a token, fetch it
       if (activeToken) {
         try {
           const userResp = await apiClient.get('/auth/me', {
             headers: { Authorization: `Bearer ${activeToken}` }
           });
+          let fetchedUser = null;
           if (userResp.data?.user) {
-            data.user = userResp.data.user;
+            fetchedUser = userResp.data.user;
           } else if (userResp.data) {
-            data.user = userResp.data;
+            fetchedUser = userResp.data;
           }
-        } catch(e) {
+          if (fetchedUser) {
+            if (fetchedUser.is_active === false || Number(fetchedUser.is_active) === 0) {
+              throw { response: { status: 403, data: { message: 'Tu cuenta ha sido deshabilitada. Ponte en contacto con el administrador.' } } };
+            }
+            data.user = fetchedUser;
+          }
+        } catch(e: any) {
+          if (e.response?.status === 403) throw e;
           console.warn("Failed fetching user profile after login fallback");
         }
       }
@@ -114,7 +125,13 @@ export const useGoogleLogin = () => {
       const response = await apiClient.post<AuthResponse>('/auth/google', {
         id_token: idToken,
       });
-      return response.data;
+      const data = response.data;
+      if (data.user) {
+        if (data.user.is_active === false || Number(data.user.is_active) === 0) {
+          throw { response: { status: 403, data: { message: 'Tu cuenta ha sido deshabilitada. Ponte en contacto con el administrador.' } } };
+        }
+      }
+      return data;
     },
     onSuccess: (data) => {
       if (data.user) {

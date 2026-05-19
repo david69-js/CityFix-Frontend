@@ -776,10 +776,35 @@ export default function IssueDetailsScreen() {
 
             {/* Info Card */}
             <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={22} color={colors.textLight} style={styles.infoIcon} />
+              <TouchableOpacity 
+                style={styles.infoRow}
+                disabled={isEditing}
+                onPress={() => {
+                  if (issue.latitude && issue.longitude) {
+                    router.push({
+                      pathname: '/map',
+                      params: {
+                        latitude: Number(issue.latitude),
+                        longitude: Number(issue.longitude),
+                        issueId: issue.id,
+                      }
+                    });
+                  } else {
+                    Alert.alert('Ubicación no disponible', 'Este reporte no cuenta con coordenadas geográficas.');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name="location-outline" 
+                  size={22} 
+                  color={isEditing ? colors.textLight : colors.primary} 
+                  style={styles.infoIcon} 
+                />
                 <View style={styles.infoTextContainer}>
-                  <Text style={styles.infoLabel}>Ubicación</Text>
+                  <Text style={[styles.infoLabel, !isEditing && { color: colors.primary, fontWeight: '700' }]}>
+                    Ubicación{!isEditing && ' (Toca para ver en el mapa)'}
+                  </Text>
                   {isEditing ? (
                     <View>
                       <TextInput
@@ -813,7 +838,7 @@ export default function IssueDetailsScreen() {
                     <Text style={styles.infoValue}>{issue.location}</Text>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
 
               <View style={styles.infoRow}>
                 <Ionicons name="calendar-outline" size={22} color={colors.textLight} style={styles.infoIcon} />

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
+import { Platform, Alert } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import apiClient from '../api/axios';
 
 const buildHtmlTemplate = (title: string, content: string, from?: any, to?: any) => {
@@ -210,8 +212,8 @@ const generateByWorkerHtml = (data: any, from?: string, to?: string) => {
 };
 
 const generateByDateHtml = (data: any, from?: string, to?: string) => {
-  const createdMap = new Map((data.created || []).map((c: any) => [c.period, c.total]));
-  const resolvedMap = new Map((data.resolved || []).map((r: any) => [r.period, r.total]));
+  const createdMap = new Map<string, number>((data.created || []).map((c: any) => [c.period, Number(c.total)]));
+  const resolvedMap = new Map<string, number>((data.resolved || []).map((r: any) => [r.period, Number(r.total)]));
   
   const allPeriods = Array.from(new Set([
     ...(data.created || []).map((c: any) => c.period),
@@ -387,13 +389,70 @@ export const useDownloadPdf = () => {
         base64: false
       });
 
-      // Share the compiled PDF using the native system dialog
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          UTI: '.pdf',
-          mimeType: 'application/pdf',
-          dialogTitle: 'Compartir reporte en PDF'
-        });
+      if (Platform.OS === 'android') {
+        Alert.alert(
+          'Reporte PDF Listo',
+          '¿Qué deseas hacer con el reporte?',
+          [
+            {
+              text: 'Guardar en el dispositivo',
+              onPress: async () => {
+                try {
+                  const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                  if (!permissions.granted) {
+                    Alert.alert('Permiso denegado', 'No se concedieron permisos para guardar el reporte.');
+                    return;
+                  }
+
+                  const base64Data = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+
+                  const createdFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                    permissions.directoryUri,
+                    filename,
+                    'application/pdf'
+                  );
+
+                  await FileSystem.writeAsStringAsync(createdFileUri, base64Data, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  });
+
+                  Alert.alert('Éxito', 'Reporte guardado exitosamente en la carpeta seleccionada.');
+                } catch (err) {
+                  console.error('Error guardando archivo con SAF:', err);
+                  Alert.alert('Error', 'No se pudo guardar el archivo en la ubicación seleccionada.');
+                }
+              }
+            },
+            {
+              text: 'Compartir',
+              onPress: async () => {
+                if (await Sharing.isAvailableAsync()) {
+                  await Sharing.shareAsync(uri, {
+                    UTI: '.pdf',
+                    mimeType: 'application/pdf',
+                    dialogTitle: 'Compartir reporte en PDF'
+                  });
+                }
+              }
+            },
+            {
+              text: 'Cancelar',
+              style: 'cancel'
+            }
+          ],
+          { cancelable: true }
+        );
+      } else {
+        // Share the compiled PDF using the native system dialog (handles iOS / other)
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            UTI: '.pdf',
+            mimeType: 'application/pdf',
+            dialogTitle: 'Compartir reporte en PDF'
+          });
+        }
       }
     } catch (error) {
       console.error('Error generando PDF en el cliente:', error);

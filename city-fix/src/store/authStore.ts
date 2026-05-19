@@ -11,6 +11,7 @@ interface User {
   phone?: string;
   avatar?: string;
   role_id?: number;
+  is_active?: boolean | number;
 }
 
 interface AuthState {
@@ -71,10 +72,22 @@ export const useAuthStore = create<AuthState>((set: any) => ({
         setAuthToken(token);
         try {
           const response = await apiClient.get('/auth/me');
-          if (response.data?.user) {
-            set({ user: response.data.user });
-          } else if (response.data) {
-            set({ user: response.data });
+          const fetchedUser = response.data?.user || response.data;
+          
+          if (fetchedUser && (fetchedUser.is_active === false || Number(fetchedUser.is_active) === 0)) {
+            console.warn('[AuthStore] Active session user is disabled, logging out');
+            setAuthToken(null);
+            await deleteItemAsync('userToken');
+            set({ token: null, user: null });
+            try {
+              const { Alert } = require('react-native');
+              Alert.alert(
+                'Acceso denegado',
+                'Tu cuenta ha sido deshabilitada por el administrador.'
+              );
+            } catch (alertError) {}
+          } else {
+            set({ user: fetchedUser });
           }
         } catch (error) {
           console.warn('[AuthStore] Token inválido o expirado, limpiando sesión:', error);

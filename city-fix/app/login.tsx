@@ -61,7 +61,8 @@ export default function LoginScreen() {
           router.replace('/');
         },
         onError: (e: any) => {
-          setErrorMessage('Error al autenticar con el servidor usando Google.');
+          const msg = e?.response?.data?.message || 'Error al autenticar con el servidor usando Google.';
+          setErrorMessage(msg);
           console.error('[GoogleLogin] Server Auth Error:', e);
         }
       });
@@ -111,7 +112,9 @@ export default function LoginScreen() {
 
         if (status === 401) {
           // Laravel returns { error: 'Unauthorized' } for bad credentials
-          setErrorMessage('🔒 Correo o contraseña incorrectos.');
+          setErrorMessage('Correo o contraseña incorrectos.');
+        } else if (status === 403) {
+          setErrorMessage(data?.message || 'Tu cuenta ha sido deshabilitada. Ponte en contacto con el administrador.');
         } else if (status === 422 && data?.errors) {
           // Laravel validation errors
           const firstError = Object.values(data.errors)[0] as string[];

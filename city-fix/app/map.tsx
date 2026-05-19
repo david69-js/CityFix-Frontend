@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator, Platform } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -31,6 +31,7 @@ const getMarkerColor = (statusName?: string): string => {
 
 export default function MapScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const styles = getStyles(colors);
@@ -39,6 +40,10 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const mapRef = useRef<MapView>(null);
+
+  const initialLat = params.latitude ? Number(params.latitude) : null;
+  const initialLng = params.longitude ? Number(params.longitude) : null;
+  const initialIssueId = params.issueId ? Number(params.issueId) : null;
 
   const allReports = (feedData?.pages?.flatMap(p => p.data) || []).filter(r => !r.is_hidden);
 
@@ -56,6 +61,31 @@ export default function MapScreen() {
       }
     })();
   }, []);
+
+  // Center on initial parameters if provided
+  useEffect(() => {
+    if (initialLat && initialLng && mapRef.current) {
+      const timer = setTimeout(() => {
+        mapRef.current?.animateToRegion({
+          latitude: initialLat,
+          longitude: initialLng,
+          latitudeDelta: 0.012,
+          longitudeDelta: 0.012,
+        }, 1000);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [initialLat, initialLng]);
+
+  // Select initial issue if provided
+  useEffect(() => {
+    if (initialIssueId && allReports.length > 0) {
+      const match = allReports.find(r => r.id === initialIssueId);
+      if (match) {
+        setSelectedReport(match);
+      }
+    }
+  }, [initialIssueId, allReports.length]);
 
   // Filtering logic
   const filteredReports = allReports.filter(report => {
@@ -164,7 +194,13 @@ export default function MapScreen() {
               ref={mapRef}
               style={StyleSheet.absoluteFill}
               provider={PROVIDER_GOOGLE}
-              initialRegion={userLocation ? { ...userLocation, latitudeDelta: 0.03, longitudeDelta: 0.03 } : DEFAULT_REGION}
+              initialRegion={
+                initialLat && initialLng
+                  ? { latitude: initialLat, longitude: initialLng, latitudeDelta: 0.012, longitudeDelta: 0.012 }
+                  : userLocation
+                  ? { ...userLocation, latitudeDelta: 0.03, longitudeDelta: 0.03 }
+                  : DEFAULT_REGION
+              }
               showsUserLocation={true}
               showsMyLocationButton={false}
               showsCompass={true}
