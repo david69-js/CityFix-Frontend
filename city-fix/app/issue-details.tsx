@@ -12,7 +12,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { useThemeColors } from '../src/hooks/useThemeColors';
 import { BottomTabBar } from '../src/components/BottomTabBar';
 import { getCategoryColor, getStatusIcon, fixImageUrl } from '../src/utils/helpers';
-// import { generateIssueDetailPDF } from '../src/utils/pdfGenerator';
+import { generateIssueDetailPDF } from '../src/utils/pdfGenerator';
 
 const { width } = Dimensions.get('window');
 
@@ -1047,7 +1047,20 @@ export default function IssueDetailsScreen() {
               </View>
             )}
 
-            {/* Export PDF Button disabled by user request */}
+            {/* Export PDF Button */}
+            <TouchableOpacity 
+              style={styles.pdfButton} 
+              onPress={async () => {
+                try {
+                  await generateIssueDetailPDF(issue);
+                } catch (err) {
+                  Alert.alert('Error', 'No se pudo generar el reporte PDF');
+                }
+              }}
+            >
+              <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+              <Text style={styles.pdfButtonText}>Exportar Detalle en PDF</Text>
+            </TouchableOpacity>
 
             {/* Similar Issues (Functional) */}
             <Text style={styles.sectionTitle}>Problemas Similares Cercanos</Text>

@@ -6,6 +6,7 @@ import { useThemeColors } from '../src/hooks/useThemeColors';
 import { useAuthStore } from '../src/store/authStore';
 import { useReportSummary, useWorkerReport, useCategoryReport, useDateReport } from '../src/hooks/useReports';
 import { BottomTabBar } from '../src/components/BottomTabBar';
+import { useDownloadPdf } from '../src/hooks/useDownloadPdf';
 
 const { width } = Dimensions.get('window');
 
@@ -14,11 +15,32 @@ export default function AdminReportsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = getStyles(colors);
+  const { downloadPdf, loading: downloadingPdf } = useDownloadPdf();
+
+  const [selectedInterval, setSelectedInterval] = useState('30D');
 
   const [dateRange, setDateRange] = useState({
     from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0]
   });
+
+  const selectInterval = (interval: string) => {
+    setSelectedInterval(interval);
+    const to = new Date().toISOString().split('T')[0];
+    let from = '';
+    
+    if (interval === '7D') {
+      from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    } else if (interval === '30D') {
+      from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    } else if (interval === '90D') {
+      from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    } else if (interval === 'ALL') {
+      from = '2020-01-01'; // Histórico completo
+    }
+    
+    setDateRange({ from, to });
+  };
 
   const { data: summary, isLoading: loadingSummary } = useReportSummary(dateRange.from, dateRange.to);
   const { data: workers, isLoading: loadingWorkers } = useWorkerReport({ from: dateRange.from, to: dateRange.to });
@@ -84,6 +106,101 @@ export default function AdminReportsScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Resumen General</Text>
           <Text style={styles.headerSubtitle}>Del {dateRange.from} al {dateRange.to}</Text>
+          
+          <View style={styles.dateSelectorContainer}>
+            <TouchableOpacity 
+              onPress={() => selectInterval('7D')} 
+              style={[styles.datePill, selectedInterval === '7D' && styles.datePillActive]}
+            >
+              <Text style={[styles.datePillText, selectedInterval === '7D' && styles.datePillTextActive]}>7 Días</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => selectInterval('30D')} 
+              style={[styles.datePill, selectedInterval === '30D' && styles.datePillActive]}
+            >
+              <Text style={[styles.datePillText, selectedInterval === '30D' && styles.datePillTextActive]}>30 Días</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => selectInterval('90D')} 
+              style={[styles.datePill, selectedInterval === '90D' && styles.datePillActive]}
+            >
+              <Text style={[styles.datePillText, selectedInterval === '90D' && styles.datePillTextActive]}>90 Días</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => selectInterval('ALL')} 
+              style={[styles.datePill, selectedInterval === 'ALL' && styles.datePillActive]}
+            >
+              <Text style={[styles.datePillText, selectedInterval === 'ALL' && styles.datePillTextActive]}>Todo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Exportar Reportes PDF</Text>
+          <View style={styles.exportCard}>
+            <Text style={styles.exportCardSubtitle}>Descarga reportes listos en formato PDF:</Text>
+            <View style={styles.exportGrid}>
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/summary', `resumen-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="document-text-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Resumen</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/by-category', `categorias-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="grid-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Categorías</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/by-worker', `trabajadores-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="people-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Trabajadores</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/by-date', `fechas-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to, group_by: 'day' })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="calendar-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Por Fecha</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/resolution-times', `tiempos-resolucion-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="time-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Tiempos</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => downloadPdf('/admin/reports/pdf/details', `detalles-${dateRange.from}-${dateRange.to}.pdf`, { from: dateRange.from, to: dateRange.to })}
+                disabled={downloadingPdf}
+                style={[styles.exportButton, downloadingPdf && { opacity: 0.6 }]}
+              >
+                <Ionicons name="list-outline" size={16} color={colors.adminHighlight} />
+                <Text style={styles.exportButtonText}>Detalles</Text>
+              </TouchableOpacity>
+            </View>
+            {downloadingPdf && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.adminHighlight} />
+                <Text style={styles.loadingText}>Generando PDF...</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {loadingSummary ? (
@@ -206,6 +323,93 @@ const getStyles = (colors: any) => StyleSheet.create({
   header: { marginBottom: 20 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: colors.textTitle },
   headerSubtitle: { fontSize: 14, color: colors.textSub, marginTop: 4 },
+  exportCard: { 
+    backgroundColor: colors.surface, 
+    borderRadius: 16, 
+    padding: 16, 
+    borderWidth: 1, 
+    borderColor: colors.border,
+    marginBottom: 10
+  },
+  exportCardSubtitle: {
+    fontSize: 14,
+    color: colors.textSub,
+    marginBottom: 14
+  },
+  exportGrid: { 
+    gap: 10,
+  },
+  exportButton: { 
+    width: '100%', 
+    backgroundColor: colors.surface, 
+    borderWidth: 1.5,
+    borderColor: colors.adminHighlight,
+    borderRadius: 12, 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 8,
+    shadowColor: colors.adminHighlight,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1
+  },
+  exportButtonText: { 
+    color: colors.adminHighlight, 
+    fontSize: 13, 
+    fontWeight: '700' 
+  },
+  dateSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginTop: 14,
+    width: '100%'
+  },
+  datePill: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  datePillActive: {
+    backgroundColor: colors.adminHighlight,
+    borderColor: colors.adminHighlight
+  },
+  datePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSub
+  },
+  datePillTextActive: {
+    color: '#FFF',
+    fontWeight: '700'
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.adminHighlight + '15',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.adminHighlight + '30'
+  },
+  loadingText: {
+    color: colors.textTitle,
+    fontSize: 13,
+    fontWeight: '500'
+  },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
   statCard: { 
     width: (width - 50) / 2, 
