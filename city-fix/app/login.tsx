@@ -18,11 +18,11 @@ export default function LoginScreen() {
 
   const loginMutation = useLogin();
   const googleLoginMutation = useGoogleLogin();
-  
+
   const handleGoogleLogin = async () => {
     try {
       setErrorMessage('');
-      
+
       // Dynamic require to avoid crash in Expo Go
       let GoogleSignin;
       try {
@@ -36,24 +36,24 @@ export default function LoginScreen() {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices();
       }
-      
+
       // Safely signOut to force account picker, but don't let it crash the flow
       try {
-        await GoogleSignin.signOut(); 
+        await GoogleSignin.signOut();
       } catch (e) {
         // Ignore if not signed in
       }
 
       console.log('[GoogleLogin] Opening native modal...');
       const response = await GoogleSignin.signIn();
-      
+
       const idToken = response.data?.idToken;
-      
+
       if (!idToken) {
         setErrorMessage('No se pudo obtener el token de Google.');
         return;
       }
-      
+
       googleLoginMutation.mutate(idToken, {
         onSuccess: () => {
           // No need to redirect manually if _layout handles it, 
@@ -80,7 +80,7 @@ export default function LoginScreen() {
 
   const handleAuthAction = () => {
     setErrorMessage('');
-    
+
     if (!email || !password) {
       setErrorMessage('Por favor ingrese su correo y contraseña.');
       return;
@@ -146,7 +146,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.iconButton}>
@@ -154,12 +154,12 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Bienvenido de nuevo</Text>
             <Text style={styles.subtitle}>
@@ -169,7 +169,7 @@ export default function LoginScreen() {
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
-            
+
             {/* Error Message */}
             {errorMessage ? (
               <View style={styles.errorContainer}>
@@ -183,7 +183,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Correo Electrónico</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
                   placeholder="tu.correo@ejemplo.com"
                   keyboardType="email-address"
@@ -200,7 +200,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Contraseña</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   style={styles.textInput}
                   placeholder="Ingresa tu contraseña"
                   secureTextEntry={!showPassword}
@@ -214,9 +214,6 @@ export default function LoginScreen() {
                   <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.forgotPassword} onPress={() => router.push('/forgot-password')}>
-                <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Login Button */}
@@ -233,8 +230,8 @@ export default function LoginScreen() {
 
             {/* Social Buttons */}
             <View style={styles.socialContainer}>
-              <TouchableOpacity 
-                style={[styles.socialButton, googleLoginMutation.isPending && { opacity: 0.6 }, { marginHorizontal: 0 }]} 
+              <TouchableOpacity
+                style={[styles.socialButton, googleLoginMutation.isPending && { opacity: 0.6 }, { marginHorizontal: 0 }]}
                 onPress={handleGoogleLogin}
                 disabled={googleLoginMutation.isPending}
               >

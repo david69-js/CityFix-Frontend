@@ -213,7 +213,7 @@ export default function ReportIssueScreen() {
           setErrorMessage('Una o más imágenes son demasiado pesadas. Intenta con fotos más pequeñas.');
         } else if (data?.errors) {
           const firstError = Object.values(data.errors).flat()[0];
-          setErrorMessage(firstError || 'Error de validación en las imágenes.');
+          setErrorMessage(typeof firstError === 'string' ? firstError : 'Error de validación en las imágenes.');
         } else if (data?.message) {
           setErrorMessage(data.message);
         } else {
@@ -279,7 +279,7 @@ export default function ReportIssueScreen() {
                       <FontAwesome5
                         name={getCategoryIcon(category.icon)}
                         size={22}
-                        color={selectedCategory === category.id ? colors.primary : colors.textTitle}
+                        color={selectedCategory === category.id ? '#FFFFFF' : colors.textTitle}
                         style={{ marginBottom: 8 }}
                       />
                       <Text style={[
@@ -439,10 +439,10 @@ const getStyles = (colors: any) => StyleSheet.create({
   asterisk: { color: colors.danger },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   categoryCard: { width: (width - 60) / 3, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 10 },
-  categoryCardSelected: { borderColor: colors.primary, backgroundColor: '#EEF4FF' },
+  categoryCardSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
   categoryIcon: { fontSize: 24, marginBottom: 8 },
   categoryName: { fontSize: 12, color: colors.textTitle, fontWeight: '600' },
-  categoryNameSelected: { color: colors.primary },
+  categoryNameSelected: { color: '#FFFFFF' },
   textInput: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textTitle },
   textArea: { minHeight: 120, paddingTop: 16 },
   locationInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16 },
